@@ -1,0 +1,3 @@
+[submodule "sp_lqr"]
+	path = sp_lqr
+	url = https://github.com/TongjiSuperPower/sp_lqr.git
