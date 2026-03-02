@@ -156,6 +156,7 @@ def main():
     data.qpos[r_rear_idx] = 1.0
 
     last_phi0_l, last_phi0_r = 0, 0
+    phi0_initialized = False
     lqr_active = False
     lqr_debug_until = 0.0
     lqr_last_print_time = -1.0
@@ -227,9 +228,14 @@ def main():
                     theta_ll = wrap(-math.pi / 2 + phi0_l + pitch)
                     theta_lr = wrap(-math.pi / 2 + phi0_r + pitch)
 
-                    dot_phi0_l = angle_diff(phi0_l, last_phi0_l) / dt
-                    dot_phi0_r = angle_diff(phi0_r, last_phi0_r) / dt
-                    last_phi0_l, last_phi0_r = phi0_l, phi0_r
+                    if not phi0_initialized:
+                        last_phi0_l, last_phi0_r = phi0_l, phi0_r
+                        phi0_initialized = True
+                        dot_phi0_l, dot_phi0_r = 0, 0
+                    else:
+                        dot_phi0_l = angle_diff(phi0_l, last_phi0_l) / dt
+                        dot_phi0_r = angle_diff(phi0_r, last_phi0_r) / dt
+                        last_phi0_l, last_phi0_r = phi0_l, phi0_r
 
                     dot_theta_ll = dot_phi0_l + dot_pitch
                     dot_theta_lr = dot_phi0_r + dot_pitch
@@ -298,6 +304,7 @@ def main():
                     print(
                         f"[LQR dbg] t={data.time:.3f} "
                         f"L0=({L0_l:.3f},{L0_r:.3f}) "
+                        f"phi0=({phi0_l:.3f},{phi0_r:.3f}) "
                         f"th=({theta_ll:.3f},{theta_lr:.3f}) "
                         f"dth=({dot_theta_ll:.3f},{dot_theta_lr:.3f}) "
                         f"pitch={pitch:.3f} dpitch={dot_pitch:.3f}"
