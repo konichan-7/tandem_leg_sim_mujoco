@@ -28,7 +28,7 @@ def getPhi(phi1, phi4, l1, l2, l3, l4, l5):
         y_C = 0 + l1 * math.sin(phi1) + l2 * math.sin(phi2)
         phi3 = math.atan2(y_C - y_D, x_C - x_D)
         l_0 = (x_C**2 + y_C**2) ** 0.5
-        phi_0 = math.atan2(y_C, x_C)
+        phi_0 = math.pi - math.atan2(y_C, x_C)
         return phi2, phi3, l_0, phi_0
     except Exception as e:
         return 0, 0, 0.15, 1.57
@@ -36,6 +36,7 @@ def getPhi(phi1, phi4, l1, l2, l3, l4, l5):
 
 def ik(L0, phi0, l1, l2, l3, l4, l5):
     # IK: (L0, phi0) -> (phi1, phi4)
+    phi0 = math.pi - phi0
     xC = L0 * math.cos(phi0)
     yC = L0 * math.sin(phi0)
     dist_AC = math.sqrt((xC + l5 / 2) ** 2 + yC**2)
@@ -65,7 +66,7 @@ def main():
     r_front_ctrl = model.actuator("Right_front_motor").id
     r_rear_ctrl = model.actuator("Right_rear_motor").id
 
-    target_L0, target_phi0 = 0.25, math.pi / 2
+    target_L0, target_phi0 = 0.25, math.pi / 4
     actual_L0, actual_phi0, current_target_L0 = 0.25, math.pi / 2, 0.25
     paused = False
 
