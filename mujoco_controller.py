@@ -6,6 +6,7 @@ import math
 import scipy.linalg
 import sys
 import os
+import yaml
 
 # Add sp_lqr to path to import sjtu modules
 sys.path.append(os.path.join(os.path.dirname(__file__), "sp_lqr"))
@@ -116,7 +117,13 @@ def quat_to_euler(quat):
     w, x, y, z = quat
     pitch = wrap(math.asin(np.clip(2 * (w * y - z * x), -1, 1)))
     yaw = wrap(math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
-    return pitch, yaw
+    return pitch, -yaw
+
+
+def load_wheel_radius(yaml_path):
+    with open(yaml_path, "r", encoding="utf-8") as file:
+        params = yaml.safe_load(file)
+    return params["R_w"]
 
 
 def main():
@@ -124,14 +131,15 @@ def main():
     data = mujoco.MjData(model)
 
     yaml_path = os.path.join(os.path.dirname(__file__), "sp_lqr", "sjtu.yaml")
+    wheel_radius = load_wheel_radius(yaml_path)
     K, _, _, _, _ = compute_lqr_controller(yaml_path, verbose=True)
 
     target_L0 = 0.15
     target_phi0 = math.pi / 2
     kp, kd = 100.0, 10.0
 
-    F0_l = PID_control(1000, 0, 100, target_L0)
-    F0_r = PID_control(1000, 0, 100, target_L0)
+    F0_l = PID_control(1000, 0, 200, target_L0)
+    F0_r = PID_control(1000, 0, 200, target_L0)
 
     l_front_idx = model.joint("Left_front_joint").qposadr[0]
     l_rear_idx = model.joint("Left_rear_joint").qposadr[0]
@@ -142,6 +150,8 @@ def main():
     l_rear_dof = model.joint("Left_rear_joint").dofadr[0]
     r_front_dof = model.joint("Right_front_joint").dofadr[0]
     r_rear_dof = model.joint("Right_rear_joint").dofadr[0]
+    l_wheel_dof = model.joint("Left_Wheel_joint").dofadr[0]
+    r_wheel_dof = model.joint("Right_Wheel_joint").dofadr[0]
 
     l_front_ctrl = model.actuator("Left_front_motor").id
     l_rear_ctrl = model.actuator("Left_rear_motor").id
@@ -156,7 +166,12 @@ def main():
     data.qpos[r_rear_idx] = 1.0
 
     last_phi0_l, last_phi0_r = 0, 0
+    last_pitch = 0.0
+    last_yaw = 0.0
     phi0_initialized = False
+    pitch_initialized = False
+    yaw_initialized = False
+    s = 0.0
     lqr_active = False
     lqr_debug_until = 0.0
     lqr_last_print_time = -1.0
@@ -181,6 +196,11 @@ def main():
             dt = model.opt.timestep
 
             if not paused:
+                dtheta_l = data.qvel[l_wheel_dof]
+                dtheta_r = -data.qvel[r_wheel_dof]
+                ds = 0.5 * wheel_radius * (dtheta_l + dtheta_r)
+                s += ds * dt
+
                 if data.time < 0.8:
                     data.ctrl[:] = 0
                     lqr_active = False
@@ -214,8 +234,21 @@ def main():
                     base_quat = data.sensordata[sensor_adr : sensor_adr + 4]
 
                     pitch, yaw = quat_to_euler(base_quat)
-                    dot_pitch = data.qvel[4]
-                    dot_yaw = data.qvel[5]
+                    if not yaw_initialized:
+                        last_yaw = yaw
+                        yaw_initialized = True
+                        dot_yaw = 0
+                    else:
+                        dot_yaw = angle_diff(yaw, last_yaw) / dt
+                        last_yaw = yaw
+
+                    if not pitch_initialized:
+                        last_pitch = pitch
+                        pitch_initialized = True
+                        dot_pitch = 0
+                    else:
+                        dot_pitch = angle_diff(pitch, last_pitch) / dt
+                        last_pitch = pitch
 
                     phi_l1 = wrap(math.pi - data.qpos[l_front_idx])
                     phi_l4 = wrap(data.qpos[l_rear_idx])
@@ -242,10 +275,10 @@ def main():
 
                     real_state = np.matrix(
                         [
-                            [data.qpos[0]],
-                            [data.qvel[0]],
-                            [yaw],
+                            [s],
+                            [ds],
                             [dot_yaw],
+                            [yaw],
                             [theta_ll],
                             [dot_theta_ll],
                             [theta_lr],
@@ -284,10 +317,10 @@ def main():
                     dF_0_r = F0_r.position_pid(L0_r, dt)
                     gravity_l = 65 / math.cos(theta_ll)
                     gravity_r = 65 / math.cos(theta_lr)
-                    F_bl = gravity_l + dF_0_l
+                    F_bl = gravity_l - dF_0_l
                     F_br = gravity_r + dF_0_r
-                    F_bl = np.clip(F_bl, -120, 120)
-                    F_br = np.clip(F_br, -120, 120)
+                    F_bl = np.clip(-F_bl, -120, 120)
+                    F_br = np.clip(-F_br, -120, 120)
 
                     JRM_L = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l, L1, L4)
                     JRM_R = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r, L1, L4)
@@ -297,7 +330,7 @@ def main():
                     data.ctrl[0] = np.clip(T_JL[0, 0], -60, 60)
                     data.ctrl[1] = np.clip(T_JL[1, 0], -60, 60)
                     data.ctrl[2] = np.clip(-T_JR[0, 0], -60, 60)
-                    data.ctrl[3] = np.clip(T_JR[1, 0], -60, 60)
+                    data.ctrl[3] = np.clip(-T_JR[1, 0], -60, 60)
                     data.ctrl[4] = np.clip(T_l, -4.5, 4.5)
                     data.ctrl[5] = np.clip(-T_r, -4.5, 4.5)
 
@@ -309,12 +342,14 @@ def main():
                         f"dth=({dot_theta_ll:.3f},{dot_theta_lr:.3f}) "
                         f"pitch={pitch:.3f} dpitch={dot_pitch:.3f}"
                     )
-                    print(
-                        f"F=({F_bl:.3f},{F_br:.3f}) "
-                        f"T_pl1={data.ctrl[0]:.3f} T_pl2={data.ctrl[1]:.3f} "
-                        f"T_pr1={data.ctrl[2]:.3f} T_pr2={data.ctrl[3]:.3f} "
-                        f"TJ=({T_JL[0, 0]:.3f},{T_JL[1, 0]:.3f},{T_JR[0, 0]:.3f},{T_JR[1, 0]:.3f})"
-                    )
+                    print(f"s={s:.3f} ds={ds:.3f}")
+                    print(f"yaw={yaw:.3f} dyaw={dot_yaw:.3f}")
+                    # print(
+                    #     f"F=({F_bl:.3f},{F_br:.3f}) "
+                    #     f"T_pl1={data.ctrl[0]:.3f} T_pl2={data.ctrl[1]:.3f} "
+                    #     f"T_pr1={data.ctrl[2]:.3f} T_pr2={data.ctrl[3]:.3f} "
+                    #     f"TJ=({T_JL[0, 0]:.3f},{T_JL[1, 0]:.3f},{T_JR[0, 0]:.3f},{T_JR[1, 0]:.3f})"
+                    # )
 
                 mujoco.mj_step(model, data)
 
