@@ -45,14 +45,13 @@ def getPhi(phi1, phi4, l1, l2, l3, l4, l5):
         y_C = 0 + l1 * math.sin(phi1) + l2 * math.sin(phi2)
         phi3 = wrap(math.atan2(y_C - y_D, x_C - x_D))
         l_0 = (x_C**2 + y_C**2) ** 0.5
-        phi_0 = wrap(math.pi - math.atan2(y_C, x_C))
+        phi_0 = math.atan2(y_C, x_C)
         return phi2, phi3, l_0, phi_0
     except:
         return 0, 0, 0.15, 1.57
 
 
 def ik(L0, phi0, l1, l2, l3, l4, l5):
-    phi0 = math.pi - phi0
     xC = L0 * math.cos(phi0)
     yC = L0 * math.sin(phi0)
 
@@ -72,8 +71,8 @@ def ik(L0, phi0, l1, l2, l3, l4, l5):
 
 def Mat_JRM(phi0, phi1, phi2, phi3, phi4, L0, l1, l4):
     denom = math.sin(phi3 - phi2)
-    if abs(denom) < 1e-4:
-        denom = 1e-4 * (1 if denom >= 0 else -1)
+    # if abs(denom) < 1e-4:
+    #     denom = 1e-4 * (1 if denom >= 0 else -1)
     JRM = np.matrix(
         [
             [
@@ -105,11 +104,13 @@ class PID_control:
     def position_pid(self, current, dt):
         error = self.target - current
         self.integral += error * dt
-        self.integral = np.clip(self.integral, -100, 100)
+        self.integral = np.clip(self.integral, -500, 500)
         derivative = (error - self.last_error) / dt
         self.last_error = error
         return np.clip(
-            self.kp * error + self.ki * self.integral + self.kd * derivative, -100, 100
+            self.kp * error + self.ki * self.integral + self.kd * derivative,
+            -2000,
+            2000,
         )
 
 
@@ -134,12 +135,12 @@ def main():
     wheel_radius = load_wheel_radius(yaml_path)
     K, _, _, _, _ = compute_lqr_controller(yaml_path, verbose=True)
 
-    target_L0 = 0.15
+    target_L0 = 0.2
     target_phi0 = math.pi / 2
-    kp, kd = 100.0, 10.0
+    kp, kd = 800.0, 100.0
 
-    F0_l = PID_control(5000, 10, 200, target_L0)
-    F0_r = PID_control(5000, 10, 200, target_L0)
+    F0_l = PID_control(5000, 0, 1000, target_L0)
+    F0_r = PID_control(5000, 0, 1000, target_L0)
 
     l_front_idx = model.joint("Left_front_joint").qposadr[0]
     l_rear_idx = model.joint("Left_rear_joint").qposadr[0]
@@ -201,13 +202,13 @@ def main():
                 if data.time < 0.8:
                     data.ctrl[:] = 0
                     lqr_active = False
-                elif data.time < 1:
+                elif data.time < 0.95:
                     p1, p4 = ik(target_L0, target_phi0, L1, L2, L3, L4, L5)
 
-                    q_l_front_target = wrap(math.pi - p1)
-                    q_l_rear_target = wrap(p4)
-                    q_r_front_target = wrap(p1 - math.pi)
-                    q_r_rear_target = wrap(-p4)
+                    q_l_rear_target = wrap(math.pi - p1)
+                    q_l_front_target = wrap(p4)
+                    q_r_rear_target = wrap(p1 - math.pi)
+                    q_r_front_target = wrap(-p4)
 
                     data.ctrl[l_front_ctrl] = (
                         kp * wrap(q_l_front_target - data.qpos[l_front_idx])
@@ -247,10 +248,10 @@ def main():
                         dot_pitch = angle_diff(pitch, last_pitch) / dt
                         last_pitch = pitch
 
-                    phi_l1 = wrap(math.pi - data.qpos[l_front_idx])
-                    phi_l4 = wrap(data.qpos[l_rear_idx])
-                    phi_r1 = wrap(math.pi + data.qpos[r_front_idx])
-                    phi_r4 = wrap(-data.qpos[r_rear_idx])
+                    phi_l1 = wrap(math.pi - data.qpos[l_rear_idx])
+                    phi_l4 = wrap(data.qpos[l_front_idx])
+                    phi_r1 = wrap(math.pi + data.qpos[r_rear_idx])
+                    phi_r4 = wrap(-data.qpos[r_front_idx])
 
                     p2l, p3l, L0_l, phi0_l = getPhi(phi_l1, phi_l4, L1, L2, L3, L4, L5)
                     p2r, p3r, L0_r, phi0_r = getPhi(phi_r1, phi_r4, L1, L2, L3, L4, L5)
@@ -274,8 +275,8 @@ def main():
                         [
                             [s],
                             [ds],
-                            [dot_yaw],
                             [yaw],
+                            [dot_yaw],
                             [theta_ll],
                             [dot_theta_ll],
                             [theta_lr],
@@ -313,35 +314,49 @@ def main():
                     dF_0_l = F0_l.position_pid(L0_l, dt)
                     dF_0_r = F0_r.position_pid(L0_r, dt)
                     print(f"dF0=({dF_0_l:.3f},{dF_0_r:.3f})")
-                    gravity_l = 65 / math.cos(theta_ll)
-                    gravity_r = 65 / math.cos(theta_lr)
+                    # Webots uses division: -mg/cos(theta) for compensation
+                    gravity_l = 0 * 9.8 * math.cos(theta_ll)
+                    gravity_r = 0 * 9.8 * math.cos(theta_lr)
                     F_bl = gravity_l + dF_0_l
                     F_br = gravity_r + dF_0_r
-                    F_bl = np.clip(F_bl, -120, 120)
-                    F_br = np.clip(F_br, -120, 120)
+                    # print(f"F_bl={F_bl:.3f} F_br={F_br:.3f}")
+                    # print(f"T_pl={T_pl:.3f} T_pr={T_pr:.3f}")
+                    # F_bl = np.clip(F_bl, -120, 120)
+                    # F_br = np.clip(F_br, -120, 120)
 
                     JRM_L = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l, L1, L4)
                     JRM_R = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r, L1, L4)
                     T_JL = JRM_L * np.matrix([[F_bl], [T_pl]])
                     T_JR = JRM_R * np.matrix([[F_br], [T_pr]])
+                    print(
+                        f"F_bl={F_bl:.3f} F_br={F_br:.3f} T_pl={T_pl:.3f} T_pr={T_pr:.3f}"
+                    )
+                    print(f"JRM_L=\n{JRM_L}\nJRM_R=\n{JRM_R}")
 
-                    data.ctrl[0] = np.clip(T_JL[0, 0], -60, 60)
-                    data.ctrl[1] = np.clip(T_JL[1, 0], -60, 60)
-                    data.ctrl[2] = np.clip(-T_JR[0, 0], -60, 60)
-                    data.ctrl[3] = np.clip(-T_JR[1, 0], -60, 60)
+                    data.ctrl[l_rear_ctrl] = np.clip(-T_JL[0, 0], -60, 60)
+                    data.ctrl[l_front_ctrl] = np.clip(T_JL[1, 0], -60, 60)
+                    data.ctrl[r_rear_ctrl] = np.clip(T_JR[0, 0], -60, 60)
+                    data.ctrl[r_front_ctrl] = np.clip(-T_JR[1, 0], -60, 60)
+
+                    # print(
+                    #     f"rear_ctrl=({data.ctrl[l_rear_ctrl]:.3f},{data.ctrl[r_rear_ctrl]:.3f})"
+                    # )
+                    # print(
+                    #     f"front_ctrl=({data.ctrl[l_front_ctrl]:.3f},{data.ctrl[r_front_ctrl]:.3f})"
+                    # )
                     data.ctrl[4] = np.clip(T_l, -4.5, 4.5)
                     data.ctrl[5] = np.clip(-T_r, -4.5, 4.5)
 
                     print(
                         f"[LQR dbg] t={data.time:.3f} "
-                        f"L0=({L0_l:.3f},{L0_r:.3f}) "
+                        f"L0=({L0_l:.5f},{L0_r:.5f}) "
                         f"phi0=({phi0_l:.3f},{phi0_r:.3f}) "
                         f"th=({theta_ll:.3f},{theta_lr:.3f}) "
                         f"dth=({dot_theta_ll:.3f},{dot_theta_lr:.3f}) "
                         f"pitch={pitch:.3f} dpitch={dot_pitch:.3f}"
                     )
-                    print(f"s={s:.3f} ds={ds:.3f}")
-                    print(f"yaw={yaw:.3f} dyaw={dot_yaw:.3f}")
+                    # print(f"s={s:.3f} ds={ds:.3f}")
+                    # print(f"yaw={yaw:.3f} dyaw={dot_yaw:.3f}")
                     # print(
                     #     f"F=({F_bl:.3f},{F_br:.3f}) "
                     #     f"T_pl1={data.ctrl[0]:.3f} T_pl2={data.ctrl[1]:.3f} "
