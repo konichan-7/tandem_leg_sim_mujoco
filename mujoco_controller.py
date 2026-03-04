@@ -138,8 +138,8 @@ def main():
     target_phi0 = math.pi / 2
     kp, kd = 100.0, 10.0
 
-    F0_l = PID_control(1000, 0, 200, target_L0)
-    F0_r = PID_control(1000, 0, 200, target_L0)
+    F0_l = PID_control(5000, 10, 200, target_L0)
+    F0_r = PID_control(5000, 10, 200, target_L0)
 
     l_front_idx = model.joint("Left_front_joint").qposadr[0]
     l_rear_idx = model.joint("Left_rear_joint").qposadr[0]
@@ -172,9 +172,6 @@ def main():
     pitch_initialized = False
     yaw_initialized = False
     s = 0.0
-    lqr_active = False
-    lqr_debug_until = 0.0
-    lqr_last_print_time = -1.0
     target_velocity, target_yaw = 0, 0
 
     baselink_quat_id = mujoco.mj_name2id(
@@ -315,12 +312,13 @@ def main():
                     F0_r.target = target_L0
                     dF_0_l = F0_l.position_pid(L0_l, dt)
                     dF_0_r = F0_r.position_pid(L0_r, dt)
+                    print(f"dF0=({dF_0_l:.3f},{dF_0_r:.3f})")
                     gravity_l = 65 / math.cos(theta_ll)
                     gravity_r = 65 / math.cos(theta_lr)
-                    F_bl = gravity_l - dF_0_l
+                    F_bl = gravity_l + dF_0_l
                     F_br = gravity_r + dF_0_r
-                    F_bl = np.clip(-F_bl, -120, 120)
-                    F_br = np.clip(-F_br, -120, 120)
+                    F_bl = np.clip(F_bl, -120, 120)
+                    F_br = np.clip(F_br, -120, 120)
 
                     JRM_L = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l, L1, L4)
                     JRM_R = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r, L1, L4)
