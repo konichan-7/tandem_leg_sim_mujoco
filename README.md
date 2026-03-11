@@ -8,15 +8,15 @@ g: 9.8  # 重力加速度 [m/s^2]
 # 几何参数
 R_w: 0.05    # 轮子半径 [m]
 R_l: 0.207    # 轮距的一半 [m]
-l_c: 0.0   # 质心偏移 [m]
+l_c: -0.1   # 质心偏移 [m]
 
 # 腿部参数
-l_l: 0.15         # 左腿总长 [m]
-l_wl: 0.075       # 左腿轮子到关节距离 [m] (0.00414 * 0.15 + 0.000565)
-l_bl: 0.075       # 左腿关节到身体距离 [m] (l_l / 2)
-l_r: 0.15         # 右腿总长 [m]
-l_wr: 0.075       # 右腿轮子到关节距离 [m]
-l_br: 0.075       # 右腿关节到身体距离 [m]
+l_l: 0.2         # 左腿总长 [m]
+l_wl: 0.1       # 左腿轮子到关节距离 [m] (0.00414 * 0.15 + 0.000565)
+l_bl: 0.1       # 左腿关节到身体距离 [m] (l_l / 2)
+l_r: 0.2         # 右腿总长 [m]
+l_wr: 0.1       # 右腿轮子到关节距离 [m]
+l_br: 0.1       # 右腿关节到身体距离 [m]
 
 # 质量参数
 m_w: 0.9   # 单个轮子质量 [kg]
@@ -24,55 +24,55 @@ m_l: 3.1  # 单条腿质量 [kg]
 m_b: 5.0   # 身体质量 [kg]
 
 # 转动惯量
-I_w: 0.000437    # 轮子转动惯量 [kg·m^2]
-I_z: 0.4704      # 绕z轴转动惯量 [kg·m^2]
-I_b: 0.06   # 机体绕pitch轴转动惯量 [kg·m^2]
-I_ll: 0.000291  # 左腿转动惯量 [kg·m^2] (0.001047 * 0.15 + 0.000134)
-I_lr: 0.000291  # 右腿转动惯量 [kg·m^2]
+I_w: 0.00137    # 轮子转动惯量 [kg·m^2]
+I_z: 0.5      # 绕z轴转动惯量 [kg·m^2]
+I_b: 0.356871164   # 机体绕pitch轴转动惯量 [kg·m^2]
+I_ll: 0.031  # 左腿转动惯量 [kg·m^2] (0.001047 * 0.15 + 0.000134)
+I_lr: 0.031  # 右腿转动惯量 [kg·m^2]
 
 # LQR 控制器参数
 lqr:
   # 状态限幅 - 用于归一化 Q 矩阵
   # 状态向量: [s, ds, phi, dphi, theta_ll, dtheta_ll, theta_lr, dtheta_lr, theta_b, dtheta_b]
   state_limits:
-    s_max: 1.0
-    ds_max: 1.0
-    phi_max: 1.0
-    dphi_max: 1.0
-    theta_ll_max: 1.0
-    dtheta_ll_max: 1.0
-    theta_lr_max: 1.0
-    dtheta_lr_max: 1.0
-    theta_b_max: 1.0
-    dtheta_b_max: 1.0
+    s_max: 1.0                 # 位移最大值 [m]
+    ds_max: 2.5                 # 线速度最大值 [m/s]
+    phi_max: 3.14               # 偏航角最大值 [rad]
+    dphi_max: 5.0               # 偏航角速度最大值 [rad/s]
+    theta_ll_max: 0.7854        # 左腿角度最大值 [rad] (π/4)
+    dtheta_ll_max: 12.0         # 左腿角速度最大值 [rad/s]
+    theta_lr_max: 0.7854        # 右腿角度最大值 [rad] (π/4)
+    dtheta_lr_max: 12.0         # 右腿角速度最大值 [rad/s]
+    theta_b_max: 0.087         # 俯仰角最大值 [rad] (π/6)
+    dtheta_b_max: 12.0           # 俯仰角速度最大值 [rad/s]
   
   # 控制输入限幅 - 用于归一化 R 矩阵
   # 输入向量: [T_wl, T_wr, T_bl, T_br]
   control_limits:
-    T_wl_max: 1.0
-    T_wr_max: 1.0
-    T_bl_max: 1.0
-    T_br_max: 1.0
+    T_wl_max: 4.5               # 左轮驱动力矩最大值 [N·m]
+    T_wr_max: 4.5               # 右轮驱动力矩最大值 [N·m]
+    T_bl_max: 60.0              # 左腿关节力矩最大值 [N·m]
+    T_br_max: 60.0              # 右腿关节力矩最大值 [N·m]
 
-  # 使用与 mujoco_controller.py 相同的权重 (因为 limit=1)
   Q_weights:
-    s: 10.0
-    ds: 200.0
-    phi: 100.0
-    dphi: 10.0
-    theta_ll: 500.0
-    dtheta_ll: 20.0
-    theta_lr: 500.0
-    dtheta_lr: 20.0
-    theta_b: 500.0
-    dtheta_b: 1000.0
+    s: 1                    # 位移权重
+    ds: 5                   # 线速度权重
+    phi: 10                  # 偏航角权重
+    dphi: 30                 # 偏航角速度权重
+    theta_ll: 1000              # 左腿角度权重
+    dtheta_ll: 100.0              # 左腿角速度权重
+    theta_lr: 1000              # 右腿角度权重
+    dtheta_lr: 100.0              # 右腿角速度权重
+    theta_b: 250.0                # 俯仰角权重
+    dtheta_b: 0.25               # 俯仰角速度权重
   
   # R 矩阵权重
   R_weights:
-    T_wl: 10.0
-    T_wr: 10.0
-    T_bl: 5.0
-    T_br: 5.0
+    T_wl: 100.0                  # 左轮驱动力矩权重
+    T_wr: 100.0                  # 右轮驱动力矩权重
+    T_bl: 200.0                  # 左腿关节力矩权重
+    T_br: 200.0                  # 右腿关节力矩权重
+
 
 # 多项式拟合参数配置
 fitting:
@@ -91,5 +91,5 @@ fitting:
     - [0.398, 0.199, 0.199, 0.0447460503]
 
   leg_data_r: null
-
+  
 ```
