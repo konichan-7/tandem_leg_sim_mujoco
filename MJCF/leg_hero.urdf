@@ -1,0 +1,895 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="hero2">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0126710173121376 0.00516934833616411 0.0996190671281105"
+        rpy="0 0 0" />
+      <mass
+        value="13.5264683943024" />
+      <inertia
+        ixx="0.0351652652761599"
+        ixy="-0.000139406971980068"
+        ixz="0.000164281851427331"
+        iyy="0.0419255762079631"
+        iyz="1.97817422758238E-05"
+        izz="0.0618567620556585" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="left_front_link">
+    <inertial>
+      <origin
+        xyz="-0.0810279166179164 0.00892559166345719 -0.0296757683892119"
+        rpy="0 0 0" />
+      <mass
+        value="0.313929254905063" />
+      <inertia
+        ixx="0.000172890527303639"
+        ixy="3.02114535901988E-06"
+        ixz="-0.000243576869079699"
+        iyy="0.00138732875546352"
+        iyz="-7.99724625967272E-07"
+        izz="0.00123133144590297" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_front_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_front_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_front_joint"
+    type="continuous">
+    <origin
+      xyz="0 0.221000000000038 0.126997182197235"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="left_front_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="left_front_child1_link">
+    <inertial>
+      <origin
+        xyz="0.0940652903140839 -0.00553538590289315 -0.0911385916268196"
+        rpy="0 0 0" />
+      <mass
+        value="0.325930996788008" />
+      <inertia
+        ixx="0.00114319579221148"
+        ixy="1.50808386665329E-06"
+        ixz="0.00102218070630137"
+        iyy="0.00220232787477311"
+        iyz="-1.54294046640523E-06"
+        izz="0.00108363642113737" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_front_child1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_front_child1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_front_child1_joint"
+    type="continuous">
+    <origin
+      xyz="-0.202957493371574 0.0345000000000013 -0.0539282475547609"
+      rpy="0 0 0" />
+    <parent
+      link="left_front_link" />
+    <child
+      link="left_front_child1_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="left_wheel_link">
+    <inertial>
+      <origin
+        xyz="0.000165684873873584 -0.00278535481510755 -0.000161712984927731"
+        rpy="0 0 0" />
+      <mass
+        value="0.407140550628078" />
+      <inertia
+        ixx="0.000329979011713381"
+        ixy="4.10448955809239E-07"
+        ixz="-9.40873704891484E-07"
+        iyy="0.000639009656514701"
+        iyz="-4.05443731422371E-07"
+        izz="0.000329930033716028" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_wheel_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_wheel_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_wheel_joint"
+    type="continuous">
+    <origin
+      xyz="0.178291245347421 0.0251999999999999 -0.175249056580818"
+      rpy="0 0 0" />
+    <parent
+      link="left_front_child1_link" />
+    <child
+      link="left_wheel_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="left_rear_link">
+    <inertial>
+      <origin
+        xyz="0.0467545020656389 0.00522480105301282 -0.0239939839341161"
+        rpy="0 0 0" />
+      <mass
+        value="0.0698854078517716" />
+      <inertia
+        ixx="3.04133027520739E-05"
+        ixy="-7.96819334961637E-07"
+        ixz="4.09933945712005E-05"
+        iyy="0.000118234147258334"
+        iyz="4.08920413581178E-07"
+        izz="8.92552962552487E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_rear_joint"
+    type="continuous">
+    <origin
+      xyz="0 0.243000000000038 0.126997182197235"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="left_rear_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="left_rear_child1_link">
+    <inertial>
+      <origin
+        xyz="-0.0571049488970946 -0.00393253219087253 -0.0359899265275734"
+        rpy="0 0 0" />
+      <mass
+        value="0.0315710186010062" />
+      <inertia
+        ixx="1.95615549112681E-05"
+        ixy="1.26674436183406E-20"
+        ixz="-2.92790613601569E-05"
+        iyy="6.67628908104683E-05"
+        iyz="5.20372552306362E-21"
+        izz="4.75655352148446E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_child1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.870588235294118 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_child1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_rear_child1_joint"
+    type="continuous">
+    <origin
+      xyz="0.100890123861144 -0.00349999999999873 -0.0517758911780659"
+      rpy="0 0 0" />
+    <parent
+      link="left_rear_link" />
+    <child
+      link="left_rear_child1_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="left_rear_child2_link">
+    <inertial>
+      <origin
+        xyz="-0.0700294759651696 -0.00380213648248728 0.0743593042032616"
+        rpy="0 0 0" />
+      <mass
+        value="0.0555799859263353" />
+      <inertia
+        ixx="0.000102557683186041"
+        ixy="-6.68972544233726E-21"
+        ixz="8.26171431849116E-05"
+        iyy="0.000176432854475293"
+        iyz="9.51888552888829E-21"
+        izz="7.44138097590679E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_child2_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_child2_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_rear_child2_joint"
+    type="continuous">
+    <origin
+      xyz="-0.114209897794189 0.0107499999999999 -0.0719798530551473"
+      rpy="0 0 0" />
+    <parent
+      link="left_rear_child1_link" />
+    <child
+      link="left_rear_child2_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="left_rear_child3_link">
+    <inertial>
+      <origin
+        xyz="-0.0466802234754622 -0.00499999999999989 -0.0124034969375983"
+        rpy="0 0 0" />
+      <mass
+        value="0.024275383549127" />
+      <inertia
+        ixx="2.0645172990655E-06"
+        ixy="2.43524665784047E-21"
+        ixz="-6.22032300211819E-06"
+        iyy="2.56272990106912E-05"
+        iyz="6.04684433940506E-22"
+        izz="2.38217191361497E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_child3_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.870588235294118 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/left_rear_child3_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_rear_child3_joint"
+    type="continuous">
+    <origin
+      xyz="-0.130275303588395 -0.01125 0.152367790141227"
+      rpy="0 0 0" />
+    <parent
+      link="left_rear_child2_link" />
+    <child
+      link="left_rear_child3_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="right_front_link">
+    <inertial>
+      <origin
+        xyz="-0.0881465153158902 -0.0108278701399744 -0.0389548918318492"
+        rpy="0 0 0" />
+      <mass
+        value="0.235947568402496" />
+      <inertia
+        ixx="0.000241301917351613"
+        ixy="-4.70089622193172E-06"
+        ixz="-0.000365003769615633"
+        iyy="0.00131563766850409"
+        iyz="-4.81383156369632E-07"
+        izz="0.0010862489520403" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_front_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_front_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_front_joint"
+    type="continuous">
+    <origin
+      xyz="0 -0.22099999999996 0.126997182197235"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="right_front_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="right_front_child1_link">
+    <inertial>
+      <origin
+        xyz="0.111669439690417 0.00700436518092151 -0.0714950630670806"
+        rpy="0 0 0" />
+      <mass
+        value="0.247859770111214" />
+      <inertia
+        ixx="0.00072634190356258"
+        ixy="-1.28141833706781E-06"
+        ixz="0.000955576108296232"
+        iyy="0.00217277206380274"
+        iyz="9.2768581145237E-07"
+        izz="0.00145994605217523" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_front_child1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_front_child1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_front_child1_joint"
+    type="continuous">
+    <origin
+      xyz="-0.193067468428789 -0.0345000000000011 -0.0826132715397341"
+      rpy="0 0 0" />
+    <parent
+      link="right_front_link" />
+    <child
+      link="right_front_child1_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="right_wheel_link">
+    <inertial>
+      <origin
+        xyz="0 -0.00159283772165253 3.33066907387547E-16"
+        rpy="0 0 0" />
+      <mass
+        value="0.296011931761001" />
+      <inertia
+        ixx="0.000287050169798907"
+        ixy="-3.10321565620008E-19"
+        ixz="5.68360719875047E-20"
+        iyy="0.000556088655849424"
+        iyz="5.49934372358226E-19"
+        izz="0.000287050169798908" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_wheel_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_wheel_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_wheel_joint"
+    type="continuous">
+    <origin
+      xyz="0.209256905844232 -0.0252000000000003 -0.136790158112706"
+      rpy="0 0 0" />
+    <parent
+      link="right_front_child1_link" />
+    <child
+      link="right_wheel_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="right_rear_link">
+    <inertial>
+      <origin
+        xyz="0.0470912585251519 -0.00556974818302414 -0.0123768017100563"
+        rpy="0 0 0" />
+      <mass
+        value="0.0657152970333042" />
+      <inertia
+        ixx="1.57622725690105E-05"
+        ixy="8.66202991758983E-07"
+        ixz="2.48097690953606E-05"
+        iyy="0.00011799206970111"
+        iyz="-2.27660568127143E-07"
+        izz="0.000103637839270157" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_rear_joint"
+    type="continuous">
+    <origin
+      xyz="0 -0.242999999999961 0.126997182197235"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="right_rear_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+  <link
+    name="right_rear_child1_link">
+    <inertial>
+      <origin
+        xyz="-0.0504664564168393 0.00393253219087231 -0.0448261840527071"
+        rpy="0 0 0" />
+      <mass
+        value="0.0315710186010065" />
+      <inertia
+        ixx="2.97350165654784E-05"
+        ixy="-1.66458222720187E-20"
+        ixz="-3.22282722448139E-05"
+        iyy="6.67628908104684E-05"
+        iyz="-1.0799764357975E-20"
+        izz="3.73920735606343E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_child1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.870588235294118 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_child1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_rear_child1_joint"
+    type="continuous">
+    <origin
+      xyz="0.109675209038018 0.00349999999999917 -0.0288254839069004"
+      rpy="0 0 0" />
+    <parent
+      link="right_rear_link" />
+    <child
+      link="right_rear_child1_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="right_rear_child2_link">
+    <inertial>
+      <origin
+        xyz="-0.0832780285763479 -0.00536023301310862 0.059145613379498"
+        rpy="0 0 0" />
+      <mass
+        value="0.0555799859263355" />
+      <inertia
+        ixx="6.96292298723383E-05"
+        ixy="3.48119028895233E-20"
+        ixz="8.16580892049916E-05"
+        iyy="0.000176432854475293"
+        iyz="-2.80887157282533E-20"
+        izz="0.000107342263072771" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_child2_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_child2_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_rear_child2_link"
+    type="continuous">
+    <origin
+      xyz="-0.100932912833681 -0.00124999999999975 -0.0896523681054165"
+      rpy="0 0 0" />
+    <parent
+      link="right_rear_child1_link" />
+    <child
+      link="right_rear_child2_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="right_rear_child3_link">
+    <inertial>
+      <origin
+        xyz="-0.0444055177386249 0.00499999999999989 -0.0190010524541562"
+        rpy="0 0 0" />
+      <mass
+        value="0.0242753835491271" />
+      <inertia
+        ixx="4.29044721467847E-06"
+        ixy="-1.42455081723604E-20"
+        ixz="-9.06463792496177E-06"
+        iyy="2.56272990106913E-05"
+        iyz="-6.45415229993961E-21"
+        izz="2.15957892205368E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_child3_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.870588235294118 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/right_rear_child3_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_rear_child3_joint"
+    type="continuous">
+    <origin
+      xyz="-0.15768 0.00175 0.12379"
+      rpy="0 0 0" />
+    <parent
+      link="right_rear_child2_link" />
+    <child
+      link="right_rear_child3_link" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="yaw_link">
+    <inertial>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="0" />
+      <inertia
+        ixx="0"
+        ixy="0"
+        ixz="0"
+        iyy="0"
+        iyz="0"
+        izz="0" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/yaw_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/yaw_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="yaw_joint"
+    type="continuous">
+    <origin
+      xyz="0 0 0.205997182197233"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="yaw_link" />
+    <axis
+      xyz="0 0 1" />
+  </joint>
+  <link
+    name="pitch_link">
+    <inertial>
+      <origin
+        xyz="0.03551 0.0058021 0.045793"
+        rpy="0 0 0" />
+      <mass
+        value="1.207" />
+      <inertia
+        ixx="0.0013602"
+        ixy="7.6442E-05"
+        ixz="-0.00053964"
+        iyy="0.0036893"
+        iyz="1.969E-06"
+        izz="0.0035456" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/pitch_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.75294 0.75294 0.75294 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hero2/meshes/pitch_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="pitch_joint"
+    type="continuous">
+    <origin
+      xyz="0 0 0.138452817802767"
+      rpy="0 0 0" />
+    <parent
+      link="yaw_link" />
+    <child
+      link="pitch_link" />
+    <axis
+      xyz="0 -1 0" />
+  </joint>
+</robot>
