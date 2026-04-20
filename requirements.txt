@@ -1,3 +1,4 @@
 mujoco
 scipy
 pyyaml
+osqp

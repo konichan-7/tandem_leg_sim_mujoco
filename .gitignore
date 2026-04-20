@@ -1,3 +1,4 @@
 .vscode/
 MUJOCO_LOG.txt
 __pycache__/
+.codex/
