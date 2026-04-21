@@ -20,6 +20,10 @@ class PIDControl:
         self.integral = 0.0
         self.last_error = 0.0
 
+    def reset(self, error: float = 0.0) -> None:
+        self.integral = 0.0
+        self.last_error = error
+
     def position_pid(self, current: float, dt: float) -> float:
         error = self.target - current
         self.integral += error * dt

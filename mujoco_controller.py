@@ -8,7 +8,15 @@ import mujoco.viewer
 import numpy as np
 import yaml
 from pid import PIDControl
-from vmc import Mat_JRM, angle_diff, getPhi, ik, virtual_force_to_joint_torque, wrap
+from vmc import (
+    Mat_JRM,
+    angle_diff,
+    getPhi,
+    ik,
+    joint_torque_to_virtual_force,
+    virtual_force_to_joint_torque,
+    wrap,
+)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "sp_lqr"))
 from mujoco_mpc import (
@@ -45,14 +53,18 @@ def main():
     )
     mpc_controller = MujocoMpcController(mpc_model)
     mpc_interval_steps = max(1, int(round(mpc_model.sample_time / model.opt.timestep)))
+    hip_torque_limit = mpc_model.hip_torque_limit
 
-    target_L0 = 0.15
+    target_L0 = 0.1
     target_phi0 = math.pi / 2
     kp = 800.0
     kd = 100.0
 
-    left_leg_pid = PIDControl(30000, 2000, 500, target_L0)
-    right_leg_pid = PIDControl(30000, 2000, 500, target_L0)
+    left_leg_pid = PIDControl(30000, 2000, 500, target_L0, output_limit=300)
+    right_leg_pid = PIDControl(30000, 2000, 500, target_L0, output_limit=300)
+    per_leg_support_force = (
+        0.5 * float(np.sum(model.body_mass)) * abs(float(model.opt.gravity[2]))
+    )
 
     l_front_idx = model.joint("Left_front_joint").qposadr[0]
     l_rear_idx = model.joint("Left_rear_joint").qposadr[0]
@@ -93,6 +105,7 @@ def main():
     expect_state[6] = 0
     mpc_step_counter = 0
     last_debug_print_time = -1.0
+    leg_force_initialized = False
 
     baselink_quat_id = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_SENSOR, "baselink_quat"
@@ -210,36 +223,61 @@ def main():
                         kp * wrap(q_r_rear_target - data.qpos[r_rear_idx])
                         - kd * data.qvel[r_rear_dof]
                     )
+                    print(
+                        f"[standup] : l_front_ctrl={data.ctrl[l_front_ctrl]:.4f} l_rear_ctrl={data.ctrl[l_rear_ctrl]:.4f} r_front_ctrl={data.ctrl[r_front_ctrl]:.4f} r_rear_ctrl={data.ctrl[r_rear_ctrl]:.4f}"
+                    )
                     data.ctrl[l_wheel_ctrl] = 0
                     data.ctrl[r_wheel_ctrl] = 0
                     cached_control[:] = 0
                     mpc_step_counter = 0
+                    leg_force_initialized = False
 
                     # 跟踪结束前夕，只将当前的累积位移s和偏航yaw设为期望，使得轮子不猛烈回退。
                     # 腿摆角 theta 必须设为0以保持直立平衡。
                     expect_state[0] = s
                     expect_state[2] = yaw
-                    expect_state[4] = 0.0
-                    expect_state[6] = 0.0
+                    expect_state[4] = -0.038
+                    expect_state[6] = -0.038
                 else:
                     left_leg_pid.target = target_L0
                     right_leg_pid.target = target_L0
-                    # 添加重力前馈（安全保护的除法），G / cos(theta)
-                    left_leg_force = left_leg_pid.position_pid(
-                        L0_l, dt
-                    ) + 65 * math.cos(theta_ll)
 
-                    right_leg_force = right_leg_pid.position_pid(
-                        L0_r, dt
-                    ) + 65 * math.cos(theta_lr)
+                    if not leg_force_initialized:
+                        left_leg_pid.reset(target_L0 - L0_l)
+                        right_leg_pid.reset(target_L0 - L0_r)
+                        leg_force_initialized = True
 
-                    left_leg_force = np.clip(left_leg_force, -300, 300)
-                    right_leg_force = np.clip(right_leg_force, -300, 300)
-                    print(f"right_leg_force = {right_leg_force}")
-                    print(f"left_leg_force = {left_leg_force}")
+                    left_leg_force = left_leg_pid.position_pid(L0_l, dt) - (
+                        per_leg_support_force / max(abs(math.cos(theta_ll)), 0.2)
+                    )
+
+                    right_leg_force = right_leg_pid.position_pid(L0_r, dt) - (
+                        per_leg_support_force / max(abs(math.cos(theta_lr)), 0.2)
+                    )
 
                     left_j_t = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l)
                     right_j_t = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r)
+
+                    left_leg_joint_torque = np.clip(
+                        virtual_force_to_joint_torque(left_j_t, left_leg_force, 0.0),
+                        -hip_torque_limit,
+                        hip_torque_limit,
+                    )
+                    right_leg_joint_torque = np.clip(
+                        virtual_force_to_joint_torque(right_j_t, right_leg_force, 0.0),
+                        -hip_torque_limit,
+                        hip_torque_limit,
+                    )
+                    left_leg_force = float(
+                        joint_torque_to_virtual_force(left_j_t, left_leg_joint_torque)[
+                            0
+                        ]
+                    )
+                    right_leg_force = float(
+                        joint_torque_to_virtual_force(
+                            right_j_t, right_leg_joint_torque
+                        )[0]
+                    )
 
                     if mpc_step_counter == 0:
                         mpc_output = mpc_controller.solve(
@@ -264,17 +302,27 @@ def main():
                         cached_control
                     )
 
-                    left_joint_torque = virtual_force_to_joint_torque(
-                        left_j_t, left_leg_force, hip_torque_l
+                    left_joint_torque = (
+                        left_leg_joint_torque
+                        + virtual_force_to_joint_torque(left_j_t, 0.0, hip_torque_l)
                     )
-                    right_joint_torque = virtual_force_to_joint_torque(
-                        right_j_t, right_leg_force, hip_torque_r
+                    right_joint_torque = (
+                        right_leg_joint_torque
+                        + virtual_force_to_joint_torque(right_j_t, 0.0, hip_torque_r)
                     )
 
-                    data.ctrl[l_rear_ctrl] = np.clip(-left_joint_torque[0], -100, 100)
-                    data.ctrl[l_front_ctrl] = np.clip(left_joint_torque[1], -100, 100)
-                    data.ctrl[r_rear_ctrl] = np.clip(right_joint_torque[0], -100, 100)
-                    data.ctrl[r_front_ctrl] = np.clip(-right_joint_torque[1], -100, 100)
+                    data.ctrl[l_rear_ctrl] = np.clip(
+                        -left_joint_torque[0], -hip_torque_limit, hip_torque_limit
+                    )
+                    data.ctrl[l_front_ctrl] = np.clip(
+                        left_joint_torque[1], -hip_torque_limit, hip_torque_limit
+                    )
+                    data.ctrl[r_rear_ctrl] = np.clip(
+                        right_joint_torque[0], -hip_torque_limit, hip_torque_limit
+                    )
+                    data.ctrl[r_front_ctrl] = np.clip(
+                        -right_joint_torque[1], -hip_torque_limit, hip_torque_limit
+                    )
                     data.ctrl[l_wheel_ctrl] = np.clip(wheel_torque_l, -4.5, 4.5)
                     data.ctrl[r_wheel_ctrl] = np.clip(-wheel_torque_r, -4.5, 4.5)
 

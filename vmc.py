@@ -109,3 +109,10 @@ def virtual_force_to_joint_torque(
     hip_torque: float,
 ) -> np.ndarray:
     return j_t @ np.array([leg_force, hip_torque], dtype=np.float64)
+
+
+def joint_torque_to_virtual_force(
+    j_t: np.ndarray,
+    joint_torque: np.ndarray,
+) -> np.ndarray:
+    return np.linalg.solve(j_t, np.asarray(joint_torque, dtype=np.float64))
