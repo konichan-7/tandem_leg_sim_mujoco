@@ -1,3 +1,4 @@
+import argparse
 import math
 import os
 import sys
@@ -25,14 +26,19 @@ def load_wheel_radius(yaml_path):
     return params["R_w"]
 
 
-def main():
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("yaml")
+    return parser.parse_args()
+
+
+def main(yaml_path: str):
     model = mujoco.MjModel.from_xml_path("MJCF/balance_bot.xml")
     data = mujoco.MjData(model)
 
-    yaml_path = os.path.join(os.path.dirname(__file__), "sp_lqr", "sjtu.yaml")
     wheel_radius = load_wheel_radius(yaml_path)
     mpc_model = load_or_export_mujoco_mpc(
-        yaml_path=os.path.join(os.path.dirname(__file__), "sp_lqr", "sjtu.yaml"),
+        yaml_path=yaml_path,
         export_path=DEFAULT_EXPORT_PATH,
         sample_time=0.01,
         horizon=10,
@@ -346,4 +352,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args.yaml)

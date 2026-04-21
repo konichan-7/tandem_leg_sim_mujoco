@@ -1,15 +1,17 @@
+import argparse
+import math
+import os
+import sys
+import time
+
 import mujoco
 import mujoco.viewer
 import numpy as np
-import time
-import math
-import sys
-import os
 import yaml
 
 from utils.math_tools import angle_diff, quat_to_euler, wrap
 from utils.pid import PID
-from utils.vmc import L5, VMC
+from utils.vmc import VMC
 
 # Add sp_lqr to path to import sjtu modules
 sys.path.append(os.path.join(os.path.dirname(__file__), "sp_lqr"))
@@ -23,11 +25,16 @@ def load_wheel_radius(yaml_path):
     return params["R_w"]
 
 
-def main():
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("yaml")
+    return parser.parse_args()
+
+
+def main(yaml_path: str):
     model = mujoco.MjModel.from_xml_path("MJCF/balance_bot.xml")
     data = mujoco.MjData(model)
 
-    yaml_path = os.path.join(os.path.dirname(__file__), "sp_lqr", "sjtu.yaml")
     wheel_radius = load_wheel_radius(yaml_path)
     K, _, _, _, _ = compute_lqr_controller(yaml_path, verbose=True)
 
@@ -99,7 +106,6 @@ def main():
 
                 if data.time < 0.8:
                     data.ctrl[:] = 0
-                    lqr_active = False
                 elif data.time < 0.95:
                     p1, p4 = vmc.inverse_kinematics(target_L0, target_phi0)
 
@@ -124,7 +130,6 @@ def main():
                         kp * wrap(q_r_rear_target - data.qpos[r_rear_idx])
                         - kd * data.qvel[r_rear_dof]
                     )
-                    lqr_active = False
                 else:
                     sensor_adr = model.sensor_adr[baselink_quat_id]
                     base_quat = data.sensordata[sensor_adr : sensor_adr + 4]
@@ -211,16 +216,10 @@ def main():
                     F0_r.target = target_L0
                     dF_0_l = F0_l.calc(L0_l, dt)
                     dF_0_r = F0_r.calc(L0_r, dt)
-                    print(f"dF0=({dF_0_l:.3f},{dF_0_r:.3f})")
-                    # Webots uses division: -mg/cos(theta) for compensation
-                    gravity_l = 0 * 9.8 * math.cos(theta_ll)
-                    gravity_r = 0 * 9.8 * math.cos(theta_lr)
+                    gravity_l = 6.5 * 9.8 * math.cos(theta_ll)
+                    gravity_r = 6.5 * 9.8 * math.cos(theta_lr)
                     F_bl = gravity_l + dF_0_l
                     F_br = gravity_r + dF_0_r
-                    # print(f"F_bl={F_bl:.3f} F_br={F_br:.3f}")
-                    # print(f"T_pl={T_pl:.3f} T_pr={T_pr:.3f}")
-                    # F_bl = np.clip(F_bl, -120, 120)
-                    # F_br = np.clip(F_br, -120, 120)
 
                     JRM_L = vmc.mat_jrm(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l)
                     JRM_R = vmc.mat_jrm(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r)
@@ -236,12 +235,6 @@ def main():
                     data.ctrl[r_rear_ctrl] = np.clip(T_JR[0], -60, 60)
                     data.ctrl[r_front_ctrl] = np.clip(-T_JR[1], -60, 60)
 
-                    # print(
-                    #     f"rear_ctrl=({data.ctrl[l_rear_ctrl]:.3f},{data.ctrl[r_rear_ctrl]:.3f})"
-                    # )
-                    # print(
-                    #     f"front_ctrl=({data.ctrl[l_front_ctrl]:.3f},{data.ctrl[r_front_ctrl]:.3f})"
-                    # )
                     data.ctrl[4] = np.clip(T_l, -4.5, 4.5)
                     data.ctrl[5] = np.clip(-T_r, -4.5, 4.5)
 
@@ -253,14 +246,6 @@ def main():
                         f"dth=({dot_theta_ll:.3f},{dot_theta_lr:.3f}) "
                         f"pitch={pitch:.3f} dpitch={dot_pitch:.3f}"
                     )
-                    # print(f"s={s:.3f} ds={ds:.3f}")
-                    # print(f"yaw={yaw:.3f} dyaw={dot_yaw:.3f}")
-                    # print(
-                    #     f"F=({F_bl:.3f},{F_br:.3f}) "
-                    #     f"T_pl1={data.ctrl[0]:.3f} T_pl2={data.ctrl[1]:.3f} "
-                    #     f"T_pr1={data.ctrl[2]:.3f} T_pr2={data.ctrl[3]:.3f} "
-                    #     f"TJ=({T_JL[0, 0]:.3f},{T_JL[1, 0]:.3f},{T_JR[0, 0]:.3f},{T_JR[1, 0]:.3f})"
-                    # )
 
                 mujoco.mj_step(model, data)
 
@@ -272,4 +257,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args.yaml)
