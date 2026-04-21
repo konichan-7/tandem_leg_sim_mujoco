@@ -7,16 +7,9 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 import yaml
-from pid import PIDControl
-from vmc import (
-    Mat_JRM,
-    angle_diff,
-    getPhi,
-    ik,
-    joint_torque_to_virtual_force,
-    virtual_force_to_joint_torque,
-    wrap,
-)
+from utils.math_tools import angle_diff, quat_to_euler, wrap
+from utils.pid import PID
+from utils.vmc import L1, L2, L3, L4, L5, VMC
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "sp_lqr"))
 from mujoco_mpc import (
@@ -24,13 +17,6 @@ from mujoco_mpc import (
     MujocoMpcController,
     load_or_export_mujoco_mpc,
 )
-
-
-def quat_to_euler(quat):
-    w, x, y, z = quat
-    pitch = wrap(math.asin(np.clip(2 * (w * y - z * x), -1, 1)))
-    yaw = wrap(math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
-    return pitch, -yaw
 
 
 def load_wheel_radius(yaml_path):
@@ -55,13 +41,14 @@ def main():
     mpc_interval_steps = max(1, int(round(mpc_model.sample_time / model.opt.timestep)))
     hip_torque_limit = mpc_model.hip_torque_limit
 
-    target_L0 = 0.1
+    target_L0 = 0.15
     target_phi0 = math.pi / 2
     kp = 800.0
     kd = 100.0
+    vmc = VMC(L1, L2, L3, L4, L5)
 
-    left_leg_pid = PIDControl(30000, 2000, 500, target_L0, output_limit=300)
-    right_leg_pid = PIDControl(30000, 2000, 500, target_L0, output_limit=300)
+    left_leg_pid = PID(30000, 2000, 500, target_L0, output_limit=300)
+    right_leg_pid = PID(30000, 2000, 500, target_L0, output_limit=300)
     per_leg_support_force = (
         0.5 * float(np.sum(model.body_mass)) * abs(float(model.opt.gravity[2]))
     )
@@ -130,7 +117,7 @@ def main():
                 ds = 0.5 * wheel_radius * (dtheta_wl + dtheta_wr)
                 s += ds * dt
 
-                # 无论是否处于MPC阶段，每一帧都计算状态，防止状态机切换时导数出现毛刺(spike)
+                # 无论是否处于MPC阶段，每一帧都计算状态，防止状态机切换时导数出现毛刺(spinverse_kinematicse)
                 sensor_adr = model.sensor_adr[baselink_quat_id]
                 base_quat = data.sensordata[sensor_adr : sensor_adr + 4]
                 pitch, yaw = quat_to_euler(base_quat)
@@ -154,8 +141,8 @@ def main():
                 phi_r1 = wrap(math.pi + data.qpos[r_rear_idx])
                 phi_r4 = wrap(-data.qpos[r_front_idx])
 
-                p2l, p3l, L0_l, phi0_l = getPhi(phi_l1, phi_l4)
-                p2r, p3r, L0_r, phi0_r = getPhi(phi_r1, phi_r4)
+                p2l, p3l, L0_l, phi0_l = vmc.forward_kinematics(phi_l1, phi_l4)
+                p2r, p3r, L0_r, phi0_r = vmc.forward_kinematics(phi_r1, phi_r4)
 
                 theta_ll = wrap(-math.pi / 2 + phi0_l + pitch)
                 theta_lr = wrap(-math.pi / 2 + phi0_r + pitch)
@@ -200,7 +187,7 @@ def main():
                     expect_state[6] = -0.005
                 elif data.time < 1.1:
                     # expect_state = np.zeros(mpc_model.nx, dtype=np.float64)
-                    p1, p4 = ik(target_L0, target_phi0)
+                    p1, p4 = vmc.inverse_kinematics(target_L0, target_phi0)
 
                     q_l_rear_target = wrap(math.pi - p1)
                     q_l_front_target = wrap(p4)
@@ -243,38 +230,42 @@ def main():
                     right_leg_pid.target = target_L0
 
                     if not leg_force_initialized:
-                        left_leg_pid.reset(target_L0 - L0_l)
-                        right_leg_pid.reset(target_L0 - L0_r)
+                        left_leg_pid.clear(target_L0 - L0_l)
+                        right_leg_pid.clear(target_L0 - L0_r)
                         leg_force_initialized = True
 
-                    left_leg_force = left_leg_pid.position_pid(L0_l, dt) - (
+                    left_leg_force = left_leg_pid.calc(L0_l, dt) - (
                         per_leg_support_force / max(abs(math.cos(theta_ll)), 0.2)
                     )
 
-                    right_leg_force = right_leg_pid.position_pid(L0_r, dt) - (
+                    right_leg_force = right_leg_pid.calc(L0_r, dt) - (
                         per_leg_support_force / max(abs(math.cos(theta_lr)), 0.2)
                     )
 
-                    left_j_t = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l)
-                    right_j_t = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r)
+                    left_j_t = vmc.mat_jrm(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l)
+                    right_j_t = vmc.mat_jrm(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r)
 
                     left_leg_joint_torque = np.clip(
-                        virtual_force_to_joint_torque(left_j_t, left_leg_force, 0.0),
+                        vmc.virtual_force_to_joint_torque(
+                            left_j_t, left_leg_force, 0.0
+                        ),
                         -hip_torque_limit,
                         hip_torque_limit,
                     )
                     right_leg_joint_torque = np.clip(
-                        virtual_force_to_joint_torque(right_j_t, right_leg_force, 0.0),
+                        vmc.virtual_force_to_joint_torque(
+                            right_j_t, right_leg_force, 0.0
+                        ),
                         -hip_torque_limit,
                         hip_torque_limit,
                     )
                     left_leg_force = float(
-                        joint_torque_to_virtual_force(left_j_t, left_leg_joint_torque)[
-                            0
-                        ]
+                        vmc.joint_torque_to_virtual_force(
+                            left_j_t, left_leg_joint_torque
+                        )[0]
                     )
                     right_leg_force = float(
-                        joint_torque_to_virtual_force(
+                        vmc.joint_torque_to_virtual_force(
                             right_j_t, right_leg_joint_torque
                         )[0]
                     )
@@ -304,11 +295,13 @@ def main():
 
                     left_joint_torque = (
                         left_leg_joint_torque
-                        + virtual_force_to_joint_torque(left_j_t, 0.0, hip_torque_l)
+                        + vmc.virtual_force_to_joint_torque(left_j_t, 0.0, hip_torque_l)
                     )
                     right_joint_torque = (
                         right_leg_joint_torque
-                        + virtual_force_to_joint_torque(right_j_t, 0.0, hip_torque_r)
+                        + vmc.virtual_force_to_joint_torque(
+                            right_j_t, 0.0, hip_torque_r
+                        )
                     )
 
                     data.ctrl[l_rear_ctrl] = np.clip(

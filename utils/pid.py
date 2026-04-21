@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class PIDControl:
+class PID:
     def __init__(
         self,
         kp: float,
@@ -20,11 +20,11 @@ class PIDControl:
         self.integral = 0.0
         self.last_error = 0.0
 
-    def reset(self, error: float = 0.0) -> None:
+    def clear(self, error: float = 0.0) -> None:
         self.integral = 0.0
         self.last_error = error
 
-    def position_pid(self, current: float, dt: float) -> float:
+    def calc(self, current: float, dt: float) -> float:
         error = self.target - current
         self.integral += error * dt
         self.integral = float(
@@ -39,6 +39,3 @@ class PIDControl:
                 self.output_limit,
             )
         )
-
-
-PID_control = PIDControl
