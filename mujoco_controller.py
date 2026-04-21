@@ -7,6 +7,8 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 import yaml
+from pid import PIDControl
+from vmc import Mat_JRM, angle_diff, getPhi, ik, virtual_force_to_joint_torque, wrap
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "sp_lqr"))
 from mujoco_mpc import (
@@ -14,99 +16,6 @@ from mujoco_mpc import (
     MujocoMpcController,
     load_or_export_mujoco_mpc,
 )
-
-L1, L2, L3, L4, L5 = 0.215, 0.254, 0.254, 0.215, 0.0
-
-
-def wrap(x):
-    return (x + math.pi) % (2 * math.pi) - math.pi
-
-
-def angle_diff(a, b):
-    return wrap(a - b)
-
-
-def getPhi(phi1, phi4, l1, l2, l3, l4, l5):
-    try:
-        x_B = -l5 / 2 + math.cos(phi1) * l1
-        y_B = math.sin(phi1) * l1
-        x_D = l5 / 2 + math.cos(phi4) * l4
-        y_D = math.sin(phi4) * l4
-        A_0 = 2 * l2 * (x_D - x_B)
-        B_0 = 2 * l2 * (y_D - y_B)
-        l_BD = ((x_D - x_B) ** 2 + (y_D - y_B) ** 2) ** 0.5
-        C_0 = l2**2 + l_BD**2 - l3**2
-
-        val = A_0**2 + B_0**2 - C_0**2
-        if val < 0:
-            val = 0
-        phi2 = wrap(2 * math.atan2(B_0 + val**0.5, A_0 + C_0))
-
-        x_C = -l5 / 2 + l1 * math.cos(phi1) + l2 * math.cos(phi2)
-        y_C = l1 * math.sin(phi1) + l2 * math.sin(phi2)
-        phi3 = wrap(math.atan2(y_C - y_D, x_C - x_D))
-        l_0 = (x_C**2 + y_C**2) ** 0.5
-        phi_0 = math.atan2(y_C, x_C)
-        return phi2, phi3, l_0, phi_0
-    except Exception:
-        return 0, 0, 0.15, 1.57
-
-
-def ik(L0, phi0, l1, l2, l3, l4, l5):
-    xC = L0 * math.cos(phi0)
-    yC = L0 * math.sin(phi0)
-
-    dist_AC = math.sqrt((xC + l5 / 2) ** 2 + yC**2)
-    cos_alpha = (l1**2 + dist_AC**2 - l2**2) / (2 * l1 * dist_AC)
-    alpha = math.acos(np.clip(cos_alpha, -1, 1))
-    angle_AC = math.atan2(yC, xC + l5 / 2)
-    phi1 = angle_AC + alpha
-
-    dist_EC = math.sqrt((xC - l5 / 2) ** 2 + yC**2)
-    cos_beta = (l4**2 + dist_EC**2 - l3**2) / (2 * l4 * dist_EC)
-    beta = math.acos(np.clip(cos_beta, -1, 1))
-    angle_EC = math.atan2(yC, xC - l5 / 2)
-    phi4 = angle_EC - beta
-    return phi1, phi4
-
-
-def Mat_JRM(phi0, phi1, phi2, phi3, phi4, L0, l1, l4):
-    denom = math.sin(phi3 - phi2)
-    return np.array(
-        [
-            [
-                l1 * math.sin(phi0 - phi3) * math.sin(phi1 - phi2) / denom,
-                l1 * math.sin(phi1 - phi2) * math.cos(phi0 - phi3) / (denom * L0),
-            ],
-            [
-                l4 * math.sin(phi0 - phi2) * math.sin(phi3 - phi4) / denom,
-                l4 * math.sin(phi3 - phi4) * math.cos(phi0 - phi2) / (denom * L0),
-            ],
-        ],
-        dtype=np.float64,
-    )
-
-
-class PID_control:
-    def __init__(self, kp, ki, kd, target):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.target = target
-        self.integral = 0
-        self.last_error = 0
-
-    def position_pid(self, current, dt):
-        error = self.target - current
-        self.integral += error * dt
-        self.integral = np.clip(self.integral, -500, 500)
-        derivative = (error - self.last_error) / dt
-        self.last_error = error
-        return np.clip(
-            self.kp * error + self.ki * self.integral + self.kd * derivative,
-            -200,
-            200,
-        )
 
 
 def quat_to_euler(quat):
@@ -142,8 +51,8 @@ def main():
     kp = 800.0
     kd = 100.0
 
-    left_leg_pid = PID_control(3000, 0, 150, target_L0)
-    right_leg_pid = PID_control(3000, 0, 150, target_L0)
+    left_leg_pid = PIDControl(30000, 2000, 500, target_L0)
+    right_leg_pid = PIDControl(30000, 2000, 500, target_L0)
 
     l_front_idx = model.joint("Left_front_joint").qposadr[0]
     l_rear_idx = model.joint("Left_rear_joint").qposadr[0]
@@ -197,7 +106,6 @@ def main():
             paused = not paused
 
     print("MuJoCo Controller Started. Press SPACE to pause.")
-
     with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
         while viewer.is_running():
             step_start = time.time()
@@ -233,8 +141,8 @@ def main():
                 phi_r1 = wrap(math.pi + data.qpos[r_rear_idx])
                 phi_r4 = wrap(-data.qpos[r_front_idx])
 
-                p2l, p3l, L0_l, phi0_l = getPhi(phi_l1, phi_l4, L1, L2, L3, L4, L5)
-                p2r, p3r, L0_r, phi0_r = getPhi(phi_r1, phi_r4, L1, L2, L3, L4, L5)
+                p2l, p3l, L0_l, phi0_l = getPhi(phi_l1, phi_l4)
+                p2r, p3r, L0_r, phi0_r = getPhi(phi_r1, phi_r4)
 
                 theta_ll = wrap(-math.pi / 2 + phi0_l + pitch)
                 theta_lr = wrap(-math.pi / 2 + phi0_r + pitch)
@@ -275,11 +183,11 @@ def main():
 
                     expect_state[0] = s
                     expect_state[2] = yaw
-                    expect_state[4] = 0
-                    expect_state[6] = 0
+                    expect_state[4] = -0.005
+                    expect_state[6] = -0.005
                 elif data.time < 1.1:
                     # expect_state = np.zeros(mpc_model.nx, dtype=np.float64)
-                    p1, p4 = ik(target_L0, target_phi0, L1, L2, L3, L4, L5)
+                    p1, p4 = ik(target_L0, target_phi0)
 
                     q_l_rear_target = wrap(math.pi - p1)
                     q_l_front_target = wrap(p4)
@@ -311,21 +219,27 @@ def main():
                     # 腿摆角 theta 必须设为0以保持直立平衡。
                     expect_state[0] = s
                     expect_state[2] = yaw
-                    expect_state[4] = -0.01
-                    expect_state[6] = -0.01
+                    expect_state[4] = 0.0
+                    expect_state[6] = 0.0
                 else:
                     left_leg_pid.target = target_L0
                     right_leg_pid.target = target_L0
                     # 添加重力前馈（安全保护的除法），G / cos(theta)
-                    left_leg_force = left_leg_pid.position_pid(L0_l, dt) + (
-                        mpc_model.default_leg_force / max(0.5, math.cos(theta_ll))
-                    )
-                    right_leg_force = right_leg_pid.position_pid(L0_r, dt) + (
-                        mpc_model.default_leg_force / max(0.5, math.cos(theta_lr))
-                    )
+                    left_leg_force = left_leg_pid.position_pid(
+                        L0_l, dt
+                    ) + 65 * math.cos(theta_ll)
 
-                    left_j_t = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l, L1, L4)
-                    right_j_t = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r, L1, L4)
+                    right_leg_force = right_leg_pid.position_pid(
+                        L0_r, dt
+                    ) + 65 * math.cos(theta_lr)
+
+                    left_leg_force = np.clip(left_leg_force, -300, 300)
+                    right_leg_force = np.clip(right_leg_force, -300, 300)
+                    print(f"right_leg_force = {right_leg_force}")
+                    print(f"left_leg_force = {left_leg_force}")
+
+                    left_j_t = Mat_JRM(phi0_l, phi_l1, p2l, p3l, phi_l4, L0_l)
+                    right_j_t = Mat_JRM(phi0_r, phi_r1, p2r, p3r, phi_r4, L0_r)
 
                     if mpc_step_counter == 0:
                         mpc_output = mpc_controller.solve(
@@ -349,19 +263,18 @@ def main():
                     wheel_torque_l, wheel_torque_r, hip_torque_l, hip_torque_r = (
                         cached_control
                     )
-                    left_joint_torque = left_j_t @ np.array(
-                        [left_leg_force, hip_torque_l],
-                        dtype=np.float64,
+
+                    left_joint_torque = virtual_force_to_joint_torque(
+                        left_j_t, left_leg_force, hip_torque_l
                     )
-                    right_joint_torque = right_j_t @ np.array(
-                        [right_leg_force, hip_torque_r],
-                        dtype=np.float64,
+                    right_joint_torque = virtual_force_to_joint_torque(
+                        right_j_t, right_leg_force, hip_torque_r
                     )
 
-                    data.ctrl[l_rear_ctrl] = np.clip(-left_joint_torque[0], -60, 60)
-                    data.ctrl[l_front_ctrl] = np.clip(left_joint_torque[1], -60, 60)
-                    data.ctrl[r_rear_ctrl] = np.clip(right_joint_torque[0], -60, 60)
-                    data.ctrl[r_front_ctrl] = np.clip(-right_joint_torque[1], -60, 60)
+                    data.ctrl[l_rear_ctrl] = np.clip(-left_joint_torque[0], -100, 100)
+                    data.ctrl[l_front_ctrl] = np.clip(left_joint_torque[1], -100, 100)
+                    data.ctrl[r_rear_ctrl] = np.clip(right_joint_torque[0], -100, 100)
+                    data.ctrl[r_front_ctrl] = np.clip(-right_joint_torque[1], -100, 100)
                     data.ctrl[l_wheel_ctrl] = np.clip(wheel_torque_l, -4.5, 4.5)
                     data.ctrl[r_wheel_ctrl] = np.clip(-wheel_torque_r, -4.5, 4.5)
 
