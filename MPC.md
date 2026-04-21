@@ -3,10 +3,12 @@
 ## 1. 架构愿景与核心修正
 本项目旨在将 STM32H7 平台上的底盘平衡控制算法从 **线性 LQR** 平滑升级为 **全向多刚体模型预测控制 (Full WBR MPC)**，同时严格保留原有的解耦架构和底层映射逻辑。
 
+当前工程中的 `stm32_export/mpc_solver/` 为 `sp_lqr/generate_mpc_c_code.py` 的导出产物。凡是涉及求解器结构、OSQP 参数、代价权重或稀疏布局的改动，必须优先修改 `sp_lqr`，再重新导出到 `stm32_export/`。
+
 **核心控制哲学（严禁篡改）：**
 1. **模型定义**：MPC 必须使用完整的**多刚体动力学模型 (Full WBR)** 进行预测，严禁使用单刚体(SRBD)降维。
 2. **状态与控制量原样保留**：MPC 的状态量 $x$ (10维) 和 控制量 $u$ (4维) 必须与原 LQR 完全一致，不得增删任何维度。
-3. **$F_0$ 的独立性**：虚拟腿的轴向推力 $F_0$ **绝对不由 MPC 或 LQR 计算**。$F_0$ 属于独立的腿长控制回路，但用于 MPC 动态约束的 $F_0$ 必须由 VMC 中两关节力矩经 $J_{RM}^{-1}$ 反解得到，而不是直接取 PID 输出。
+3. **$F_0$ 的独立性**：虚拟腿的轴向推力 $F_0$ **绝对不由 MPC 或 LQR 计算**。$F_0$ 属于独立的腿长控制回路。当前实现中，MPC 约束和 VMC 映射使用的是控制器缓存的腿轴向力命令 `left_leg_force_cmd_ / right_leg_force_cmd_`，其来源是“重力前馈 + 腿长 PID + 弹簧补偿”的独立更新链路。
 4. **VMC 的作用**：内环 VMC 接收 MPC 输出的虚拟髋关节力矩 $T_p$，并利用雅可比矩阵转置 $J^T$ 在虚拟力与底层物理关节力矩之间双向映射。
 
 ---
@@ -19,16 +21,15 @@ $x = [s, \dot{s}, \phi, \dot{\phi}, \theta_{l}, \dot{\theta}_{l}, \theta_{r}, \d
 (位移、线速度、偏航角、偏航角速度、左腿角、左腿角速度、右腿角、右腿角速度、机体pitch角、机体pitch角速度)
 
 ### 2.2 外环：Full WBR MPC (100Hz / 10ms)
-* **输入**：当前状态 $x_{fdb}$、期望状态 $x_{ref}$、当前更新的 $A_d, B_d$ 矩阵。
+* **输入**：当前状态 $x_{fdb}$、期望状态 $x_{ref}$、当前周期的 $J^T$ 与腿轴向力命令 $F_0$。
+* **模型更新说明**：求解器接口保留了在线注入 $A_d, B_d$ 的能力，但当前 STM32 实际运行路径默认使用导出时固化的名义模型，只在每次求解前更新 `q / l / u` 和雅可比相关约束。
 * **输出控制量 $u$ (4维，同 LQR)**：
   $u = [T_{wheel\_l}, T_{wheel\_r}, T_{p\_l}, T_{p\_r}]^T$
   *(左右轮端期望扭矩，左右虚拟腿绕髋期望力矩)*
 
 ### 2.3 内环：Leg-PID + VMC 映射 (1000Hz / 1ms)
 * **独立腿长控制 (Leg-PID)**：
-  先由“重力前馈 + 腿长 PID”生成腿长通道关节力矩 $\begin{bmatrix}T_1 \\ T_2\end{bmatrix}$，再通过
-  $\begin{bmatrix} F_0 \\ T_p \end{bmatrix} = (J^T)^{-1}\begin{bmatrix} T_1 \\ T_2 \end{bmatrix}$
-  反解得到当前周期用于动态约束更新的 $F_0$。
+  当前实现先独立更新腿轴向力命令 $F_0$，再结合外环缓存的 $T_p$ 做 VMC 映射。`F_0` 的更新与姿态平衡解耦，运行在 1ms 快环。
 * **VMC 运动学映射**：
   获取当前周期的雅可比矩阵转置 $J^T$。
   $\begin{bmatrix} \tau_{front\_hip} \\ \tau_{rear\_hip} \end{bmatrix} = J^T \begin{bmatrix} F_0 \\ T_p \end{bmatrix}$
@@ -38,17 +39,17 @@ $x = [s, \dot{s}, \phi, \dot{\phi}, \theta_{l}, \dot{\theta}_{l}, \theta_{r}, \d
 ## 3. 动态约束边界 (MPC 的核心升级)
 
 引入 MPC 的根本目的是为了处理大惯量系统在电机物理极限（如 $\pm 35 \text{ Nm}$）下的平衡问题。
-在 OSQP 中，我们必须将 VMC 的映射方程融入 QP 约束中。由于 $F_0$ 在当前控制周期是已知的（由内环关节力矩经 $J_{RM}^{-1}$ 反解得到），它在 MPC 约束中作为一个**常数偏置项**存在。
+在 OSQP 中，我们必须将 VMC 的映射方程融入 QP 约束中。由于 $F_0$ 在当前控制周期是已知的（由独立腿长控制回路更新并缓存），它在 MPC 约束中作为一个**常数偏置项**存在。
 
 已知 $\tau_{hip} = J_{11} F_0 + J_{12} T_p$ 且极限为 $\pm 35$：
 $$-35 \le J_{11} F_0 + J_{12} T_p \le 35$$
 **转换为 MPC 针对 $T_p$ 的标准不等式约束**：
 $$-35 - J_{11} F_0 \le J_{12} T_p \le 35 - J_{11} F_0$$
-*Agent 指令*：每次调用 `osqp_solve` 前，必须通过 API 更新上述动态上/下界约束向量 `l` 和 `u`。
+*Agent 指令*：每次调用 `osqp_solve` 前，必须通过 API 更新上述动态上/下界约束向量 `l` 和 `u`。当前实现还会同步更新约束矩阵中与 $J^T$ 对应的系数，且在常规运行路径下优先使用稀疏增量更新，而不是每次全量重写整张 `A` 矩阵。
 
 ---
 
-## 4. 阶段开发任务拆解 (Phase 1 to 3)
+## 4. 阶段开发任务拆解 (Phase 1 to 4)
 
 ### Phase 1: VMC 与腿长控制逻辑重构/确认
 **目标文件**：`applications/utils/vmc/vmc.cpp`
@@ -57,20 +58,28 @@ $$-35 - J_{11} F_0 \le J_{12} T_p \le 35 - J_{11} F_0$$
 
 ### Phase 2: Python端代码生成与 C++ MPC 封装
 **目标文件**：`sp_lqr` 目录及 `mpc_controller.cpp`
-1. **Python端**：利用已有的 10维状态、4维输入的全动力学连续矩阵 $A_c, B_c$，离散化为 $A_d, B_d$。设置合理的 Horizon $N$（如 10），生成 OSQP C 代码静态库。
+1. **Python端**：利用已有的 10维状态、4维输入的全动力学连续矩阵 $A_c, B_c$，离散化为 $A_d, B_d$。设置合理的 Horizon $N$（当前为 10），由 `generate_mpc_c_code.py` 统一生成 `osqp_codegen/`、`mpc_solver_layout.*`、`mpc_solver.*` 与元数据。
 2. **C++ 端**：创建 `MpcController`，继承现有控制层接口。
 3. **状态注入**：将 10维状态反馈严格对齐填充至一维数组。
-4. **约束更新**：在 `calc()` 中，拉取当前的 $F_0$ 值与 $J^T$，计算新的边界值，并调用 `osqp_update_bounds()` 更新。
+4. **约束更新**：在 `calc()` 中，拉取当前的 $F_0$ 与 $J^T$，更新约束边界，并通过 OSQP 的矩阵/向量更新接口同步到求解器。
+5. **当前实时参数**：生成器中当前使用的实时参数为 `MODEL_NNZ_THRESHOLD = 1e-5`、`OSQP_EPS_ABS = 1e-2`、`OSQP_EPS_REL = 1e-2`、`OSQP_MAX_ITER = 50`、`OSQP_CHECK_TERMINATION = 10`、`OSQP_ADAPTIVE_RHO = False`、`OSQP_CHECK_DUALGAP = False`。
+6. **内存放置**：当前策略是将 `mpc_workspace.c` 的大块 `.data` 放入 `RAM_D1`，而求解热工作数组和运行期 workspace 优先放在 `DTCM`。
 
 ### Phase 3: RTOS 双重频率调度
 **目标文件**：`applications/chassis_task.cpp`
-1. 维持 Task 的 1ms 周期。
+1. 维持 Task 的 1ms 周期，当前实现使用绝对周期调度而不是“算完再 delay”的相对延时。
 2. **快环 (1000Hz)**：每次执行腿长 PID 计算出最新的 $F_0$；随后调用 VMC，利用最新 $J^T$、最新的 $F_0$ 以及**缓存的 MPC 输出 $T_p$** 计算关节力矩，下发给 CAN。
 3. **慢环 (100Hz)**：设立计数器，每逢 10ms 触发一次。调用 `MpcController->calc()`，传入最新状态量，更新缓存的 $T_p$ 和 $T_{wheel}$。
+
+### Phase 4: 运行期观测与验收
+**目标文件**：`applications/plot_task.cpp`
+1. 建议默认监看 `last_solve_time_ms`、`iterations`、`status`、`last_solve_used_fallback`、`last_solve_ok`。
+2. 在板上调参时，不要只看“有没有解出来”，还要看求解时间是否稳定、是否频繁顶到 `max_iter`、以及 fallback 是否连续触发。
 
 ---
 
 ## 5. Agent 编码红线 (严格遵守)
 1. **控制量禁区**：不得改变原有的 4 维输入控制律，MPC 的直接输出必须是 $T_{wheel}$ 和 $T_p$。
 2. **内存安全**：禁止在 C++ 的 `calc` 循环中使用任何形式的 `new` 或 `malloc`。
-3. **超时兜底**：必须在 `MpcController` 中加入超时检测（如使用 `DWT->CYCCNT`）。一旦 QP 求解失败，使用上一帧计算出的控制序列或降级为 LQR 计算逻辑。
+3. **超时兜底**：必须在 `MpcController` 中加入超时检测（如使用 `DWT->CYCCNT`）。当前实现口径是“求解状态不可用或耗时超阈值时直接降级为 LQR”，不要把“上一帧控制序列复用”写成已实现事实。
+4. **热启动口径**：OSQP 在连续求解过程中启用 warm start，但控制器 `init()` / `mpc_solver_reset()` 会显式执行 cold start；文档和实现描述要保持一致。
