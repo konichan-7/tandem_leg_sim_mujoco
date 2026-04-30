@@ -2,3 +2,5 @@ mujoco
 scipy
 pyyaml
 osqp
+sympy
+control

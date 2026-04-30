@@ -60,19 +60,19 @@ def main():
                 kp, kd = 1000.0, 50.0
                 data.ctrl[l_front_ctrl] = (
                     kp * (q_l_front_target - data.qpos[l_front_idx])
-                    - kd * data.qvel[model.joint("Left_front_joint").dofadr[0]]
+                    - kd * data.qvel[model.joint("left_front_joint").dofadr[0]]
                 )
                 data.ctrl[l_rear_ctrl] = (
                     kp * (q_l_rear_target - data.qpos[l_rear_idx])
-                    - kd * data.qvel[model.joint("Left_rear_joint").dofadr[0]]
+                    - kd * data.qvel[model.joint("left_rear_joint").dofadr[0]]
                 )
                 data.ctrl[r_front_ctrl] = (
                     kp * (q_r_front_target - data.qpos[r_front_idx])
-                    - kd * data.qvel[model.joint("Right_front_joint").dofadr[0]]
+                    - kd * data.qvel[model.joint("right_front_joint").dofadr[0]]
                 )
                 data.ctrl[r_rear_ctrl] = (
                     kp * (q_r_rear_target - data.qpos[r_rear_idx])
-                    - kd * data.qvel[model.joint("Right_rear_joint").dofadr[0]]
+                    - kd * data.qvel[model.joint("right_rear_joint").dofadr[0]]
                 )
 
                 # FK Verification

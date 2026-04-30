@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco model="demo">
+  <compiler angle="radian" meshdir="." />
+  <option timestep="0.001" iterations="50" solver="PGS" integrator="RK4" />
+
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.8 0.8 0.8" specular="0.1 0.1 0.1" />
+    <rgba fog="0.1 0.1 0.1 1" />
+  </visual>
+
+  <asset>
+    <mesh name="base_link" file="base_link.STL" />
+    <mesh name="left_front_link" file="left_front_link.STL" />
+    <mesh name="left_front_child1_link" file="left_front_child1_link.STL" />
+    <mesh name="left_wheel_link" file="left_wheel_link.STL" />
+    <mesh name="left_rear_link" file="left_rear_link.STL" />
+    <mesh name="left_rear_child1_link" file="left_rear_child1_link.STL" />
+    <mesh name="left_rear_child2_link" file="left_rear_child2_link.STL" />
+    <mesh name="left_rear_child3_link" file="left_rear_child3_link.STL" />
+    <mesh name="right_front_link" file="right_front_link.STL" />
+    <mesh name="right_front_child1_link" file="right_front_child1_link.STL" />
+    <mesh name="right_wheel_link" file="right_wheel_link.STL" />
+    <mesh name="right_rear_link" file="right_rear_link.STL" />
+    <mesh name="right_rear_child1_link" file="right_rear_child1_link.STL" />
+    <mesh name="right_rear_child2_link" file="right_rear_child2_link.STL" />
+    <mesh name="right_rear_child3_link" file="right_rear_child3_link.STL" />
+
+    <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300" mark="edge" markrgb=".2 .3 .4" />
+    <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" />
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 2" dir="0 0 -1" diffuse="1 1 1" />
+    <geom name="floor" type="plane" size="10 10 0.1" material="grid" />
+
+    <body name="base_link" pos="0 0 0.3">
+      <freejoint />
+      <inertial pos="-0.00022305 -0.001202 0.04923" mass="1.6625" fullinertia="0.00072668 0.0013318 0.0012873 4.4314e-09 2.2634e-08 -1.8332e-09" />
+      <geom type="mesh" rgba="1 1 1 1" mesh="base_link" />
+
+      <body name="left_front_link" pos="0 0.0935 0.069">
+        <inertial pos="-0.047088 0.0041691 -0.027001" mass="0.12969" fullinertia="8.6543e-05 0.00034625 0.00026248 4.8428e-07 -0.00012411 2.7769e-07" />
+        <joint name="left_front_joint" axis="0 1 0" damping="0.1" range="-3.14 3.14" />
+        <site name="left_front_site1" pos="-0.06947 0.0278 -0.03658" size="0.005" rgba="1 1 0 1"/>           
+        <geom type="mesh" rgba="1 1 1 1" mesh="left_front_link" />
+
+        <body name="left_front_child1_link" pos="-0.13947 0.0168 -0.073168">
+          <inertial pos="0.059204 0.0058342 -0.065373" mass="0.16979" fullinertia="0.00061883 0.0010018 0.00038697 1.0293e-06 0.00045283 -1.2468e-06" />
+          <joint name="left_front_child1_joint" axis="0 1 0" damping="0.02" />
+          <site name="left_front_site2" pos="-0.01157 0 0.03829" size="0.005" rgba="1 0 0 1"/>
+          <geom type="mesh" rgba="1 1 1 1" mesh="left_front_child1_link" />
+
+          <body name="left_wheel_link" pos="0.11973 0.03105 -0.14364">
+            <inertial pos="2.8536e-05 -0.0054862 -0.00016439" mass="0.19375" fullinertia="0.00015099 0.00026983 0.00015166 6.2812e-08 -1.9313e-07 -2.3336e-07" />
+            <joint name="left_wheel_joint" axis="0 1 0" damping="0.01" />
+            <geom type="mesh" rgba="0.63922 0.66667 0.67843 1" mesh="left_wheel_link" />
+          </body>
+        </body>
+      </body>
+
+      <body name="left_rear_link" pos="0 0.1203 0.069">
+        <inertial pos="0.026899 -0.0040693 -0.020941" mass="0.048536" fullinertia="2.0807e-05 5.0801e-05 3.1317e-05 -1.1728e-07 2.0767e-05 9.1299e-08" />
+        <joint name="left_rear_joint" axis="0 1 0" damping="0.1" range="-3.14 3.14" />
+        <geom type="mesh" rgba="1 1 1 1" mesh="left_rear_link" />
+
+        <body name="left_rear_child1_link" pos="0.064909 -0.0173 -0.046054">
+          <inertial pos="-0.039657 0.00017434 -0.033239" mass="0.01824" fullinertia="8.234e-06 1.9322e-05 1.1486e-05 1.1117e-07 -9.1632e-06 9.3179e-08" />
+          <joint name="left_rear_child1_joint" axis="0 1 0" damping="0.05" />
+          <geom type="mesh" rgba="1 1 1 1" mesh="left_rear_child1_link" />
+
+          <body name="left_rear_child2_link" pos="-0.074619 0.0093 -0.062542">
+            <inertial pos="-0.040752 0.004 0.056621" mass="0.040644" fullinertia="4.4766e-05 6.6046e-05 2.1713e-05 -2.5807e-20 2.8679e-05 3.6193e-20" />
+            <joint name="left_rear_child2_joint" axis="0 1 0" damping="0.02" />
+            <site name="left_rear_site1" pos="-0.06 0 0.07201" size="0.005" rgba="1 0 0 1"/>  
+            <geom type="mesh" rgba="1 1 1 1" mesh="left_rear_child2_link" />
+
+            <body name="left_rear_child3_link" pos="-0.071597 -0.0138 0.1103">
+              <inertial pos="-0.033688 0.005203 -0.017673" mass="0.014737" fullinertia="2.8905e-06 1.1946e-05 9.3281e-06 -1.0079e-07 -4.6594e-06 -5.2874e-08" />
+              <joint name="left_rear_child3_joint" axis="0 1 0" damping="0.02" />
+              <site name="left_rear_site2" pos="-0.06974 0 -0.03658" size="0.005" rgba="1 0 0 1"/>  
+              <geom type="mesh" rgba="1 1 1 1" mesh="left_rear_child3_link" />
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="right_front_link" pos="0 -0.0935 0.069">
+        <inertial pos="-0.057309 -0.0059207 -0.032862" mass="0.10656" fullinertia="8.0792e-05 0.00033498 0.00025673 -4.8428e-07 -0.00012411 -2.7769e-07" />
+        <joint name="right_front_joint" axis="0 1 0" damping="0.1" range="-3.14 3.14" />
+        <site name="right_front_site1" pos="-0.06947 -0.0278 -0.03658" size="0.005" rgba="1 1 0 1"/>           
+        <geom type="mesh" rgba="1 1 1 1" mesh="right_front_link" />
+
+        <body name="right_front_child1_link" pos="-0.13947 -0.0168 -0.073168">
+          <inertial pos="0.059189 -0.0058342 -0.065386" mass="0.16979" fullinertia="0.00061884 0.0010018 0.00038696 -1.0294e-06 0.00045283 1.2468e-06" />
+          <joint name="right_front_child1_joint" axis="0 1 0" damping="0.02" />
+          <site name="right_front_site2" pos="-0.01157 0 0.03829" size="0.005" rgba="1 0 0 1"/>
+          <geom type="mesh" rgba="1 1 1 1" mesh="right_front_child1_link" />
+
+          <body name="right_wheel_link" pos="0.11973 -0.03105 -0.14364">
+            <inertial pos="6.9925e-05 0.0054862 -0.00015148" mass="0.19375" fullinertia="0.00015102 0.00026983 0.00015163 -8.0913e-08 -2.4883e-07 2.2772e-07" />
+            <joint name="right_wheel_joint" axis="0 1 0" damping="0.01" />
+            <geom type="mesh" rgba="0.63922 0.66667 0.67843 1" mesh="right_wheel_link" />
+          </body>
+        </body>
+      </body>
+
+      <body name="right_rear_link" pos="0 -0.1203 0.069">
+        <inertial pos="0.026899 0.0040693 -0.020941" mass="0.048536" fullinertia="2.0807e-05 5.0801e-05 3.1317e-05 1.1728e-07 2.0767e-05 -9.1299e-08" />
+        <joint name="right_rear_joint" axis="0 1 0" damping="0.1" range="-3.14 3.14" />
+        <geom type="mesh" rgba="1 1 1 1" mesh="right_rear_link" />
+
+        <body name="right_rear_child1_link" pos="0.064909 0.0173 -0.046054">
+          <inertial pos="-0.039657 -0.00017434 -0.033239" mass="0.015004" fullinertia="6.7731e-06 1.5894e-05 9.4485e-06 -9.1448e-08 -7.5375e-06 -7.6648e-08" />
+          <joint name="right_rear_child1_joint" axis="0 1 0" damping="0.05" />
+          <geom type="mesh" rgba="1 1 1 1" mesh="right_rear_child1_link" />
+
+          <body name="right_rear_child2_link" pos="-0.074619 -0.0173 -0.062542">
+            <inertial pos="-0.040752 0.004 0.056621" mass="0.040644" fullinertia="4.4766e-05 6.6046e-05 2.1713e-05 2.408e-20 2.8679e-05 -3.4157e-20" />
+            <joint name="right_rear_child2_joint" axis="0 1 0" damping="0.05" />
+            <site name="right_rear_site1" pos="-0.06 0 0.07201" size="0.005" rgba="1 0 0 1"/>  
+            <geom type="mesh" rgba="1 1 1 1" mesh="right_rear_child2_link" />
+
+            <body name="right_rear_child3_link" pos="-0.071597 0.0218 0.1103">
+              <inertial pos="-0.033688 -0.005203 -0.017673" mass="0.014737" fullinertia="2.8905e-06 1.1946e-05 9.3281e-06 1.0079e-07 -4.6594e-06 5.2874e-08" />
+              <joint name="right_rear_child3_joint" axis="0 1 0" damping="0.02" />
+              <site name="right_rear_site2" pos="-0.06974 0 -0.03658" size="0.005" rgba="1 0 0 1"/>  
+              <geom type="mesh" rgba="1 1 1 1" mesh="right_rear_child3_link" />
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <equality>
+      <connect name="left_loop1" site1="left_front_site1" site2="left_rear_site1" solref="0.001 1" solimp="0.99 0.99 0.01 0.5 2"/>
+      <connect name="left_loop2" site1="left_front_site2" site2="left_rear_site2" solref="0.001 1" solimp="0.99 0.99 0.01 0.5 2"/>
+      <connect name="right_loop1" site1="right_front_site1" site2="right_rear_site1" solref="0.001 1" solimp="0.99 0.99 0.01 0.5 2"/>
+      <connect name="right_loop2" site1="right_front_site2" site2="right_rear_site2" solref="0.001 1" solimp="0.99 0.99 0.01 0.5 2"/>
+  </equality>
+
+  <actuator>
+    <motor name="left_front_motor" joint="left_front_joint" gear="1" />
+    <motor name="left_rear_motor" joint="left_rear_joint" gear="1" />
+    <motor name="right_front_motor" joint="right_front_joint" gear="1" />
+    <motor name="right_rear_motor" joint="right_rear_joint" gear="1" />
+    <motor name="left_wheel_motor" joint="left_wheel_joint" gear="1" />
+    <motor name="right_wheel_motor" joint="right_wheel_joint" gear="1" />
+  </actuator>
+
+  <sensor>
+    <framequat name="baselink_quat" objtype="xbody" objname="base_link" />
+    <actuatorfrc name="left_front_motor_frc" actuator="left_front_motor" />
+    <actuatorfrc name="left_rear_motor_frc" actuator="left_rear_motor" />
+    <actuatorfrc name="right_front_motor_frc" actuator="right_front_motor" />
+    <actuatorfrc name="right_rear_motor_frc" actuator="right_rear_motor" />
+    <actuatorfrc name="left_wheel_motor_frc" actuator="left_wheel_motor" />
+    <actuatorfrc name="right_wheel_motor_frc" actuator="right_wheel_motor" />
+  </sensor>
+</mujoco>
