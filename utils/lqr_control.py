@@ -96,6 +96,11 @@ class DemoLqrController:
         self.s = 0.0
         self.paused = False
         self.last_l0_print = 0.0
+        self.target_s = 0.0
+        self.target_velocity = CONTROL.target_velocity
+        self.target_yaw = CONTROL.target_yaw
+        self.ignore_s_error = False
+        self.wheel_torque = np.zeros(2, dtype=float)
         self.plotter = plotter
 
         self.data.qpos[2] = CONTROL.base_init_z
@@ -229,9 +234,9 @@ class DemoLqrController:
         )
         expect_state = np.array(
             [
-                0.0,
-                CONTROL.target_velocity,
-                CONTROL.target_yaw,
+                self.s if self.ignore_s_error else self.target_s,
+                self.target_velocity,
+                self.target_yaw,
                 0.0,
                 0.1,
                 0.0,
@@ -266,6 +271,21 @@ class DemoLqrController:
         )
         tau_l = self.vmc.virtual_force_to_joint_torque(j_l, f_bl, float(u[2]))
         tau_r = self.vmc.virtual_force_to_joint_torque(j_r, f_br, float(u[3]))
+        left_wheel_torque = float(
+            np.clip(
+                u[0],
+                -self.control_limits["T_wl_max"],
+                self.control_limits["T_wl_max"],
+            )
+        )
+        right_wheel_torque = float(
+            np.clip(
+                u[1],
+                -self.control_limits["T_wr_max"],
+                self.control_limits["T_wr_max"],
+            )
+        )
+        self.wheel_torque = np.array([left_wheel_torque, right_wheel_torque])
         self.actuator.set_many(
             {
                 JOINTS.left_front: float(
@@ -296,20 +316,8 @@ class DemoLqrController:
                         self.control_limits["T_br_max"],
                     )
                 ),
-                JOINTS.left_wheel: float(
-                    np.clip(
-                        u[0],
-                        -self.control_limits["T_wl_max"],
-                        self.control_limits["T_wl_max"],
-                    )
-                ),
-                JOINTS.right_wheel: float(
-                    np.clip(
-                        u[1],
-                        -self.control_limits["T_wr_max"],
-                        self.control_limits["T_wr_max"],
-                    )
-                ),
+                JOINTS.left_wheel: left_wheel_torque,
+                JOINTS.right_wheel: right_wheel_torque,
             }
         )
 
