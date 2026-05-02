@@ -36,6 +36,7 @@
     <body name="base_link" pos="0 0 0.3">
       <freejoint />
       <inertial pos="-0.00022305 -0.001202 0.04923" mass="1.6625" fullinertia="0.00072668 0.0013318 0.0012873 4.4314e-09 2.2634e-08 -1.8332e-09" />
+      <site name="imu" pos="0 0 0" size="0.005" rgba="0 1 0 1" />
       <geom type="mesh" rgba="1 1 1 1" mesh="base_link" />
 
       <body name="left_front_link" pos="0 0.0935 0.069">
@@ -149,12 +150,22 @@
   </actuator>
 
   <sensor>
-    <framequat name="baselink_quat" objtype="xbody" objname="base_link" />
-    <actuatorfrc name="left_front_motor_frc" actuator="left_front_motor" />
-    <actuatorfrc name="left_rear_motor_frc" actuator="left_rear_motor" />
-    <actuatorfrc name="right_front_motor_frc" actuator="right_front_motor" />
-    <actuatorfrc name="right_rear_motor_frc" actuator="right_rear_motor" />
-    <actuatorfrc name="left_wheel_motor_frc" actuator="left_wheel_motor" />
-    <actuatorfrc name="right_wheel_motor_frc" actuator="right_wheel_motor" />
+    <jointpos name="left_front_joint_pos" joint="left_front_joint" />
+    <jointpos name="left_rear_joint_pos" joint="left_rear_joint" />
+    <jointpos name="right_front_joint_pos" joint="right_front_joint" />
+    <jointpos name="right_rear_joint_pos" joint="right_rear_joint" />
+    <jointpos name="left_wheel_joint_pos" joint="left_wheel_joint" />
+    <jointpos name="right_wheel_joint_pos" joint="right_wheel_joint" />
+    
+    <jointvel name="left_front_joint_vel" joint="left_front_joint" />
+    <jointvel name="left_rear_joint_vel" joint="left_rear_joint" />
+    <jointvel name="right_front_joint_vel" joint="right_front_joint" />
+    <jointvel name="right_rear_joint_vel" joint="right_rear_joint" />
+    <jointvel name="left_wheel_joint_vel" joint="left_wheel_joint" />
+    <jointvel name="right_wheel_joint_vel" joint="right_wheel_joint" />
+
+    <framequat name="quat" objtype="site" objname="imu"/>
+    <accelerometer name="acc" site="imu" />
+    <gyro name="gyro" site="imu" />
   </sensor>
 </mujoco>

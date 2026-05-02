@@ -4,12 +4,6 @@ import numpy as np
 
 from .math_tools import wrap
 
-L1 = 0.215
-L2 = 0.254
-L3 = 0.254
-L4 = 0.215
-L5 = 0.0
-
 
 class VMC:
     def __init__(
@@ -51,7 +45,7 @@ class VMC:
             phi_0 = math.atan2(y_c, x_c)
             return phi2, phi3, l_0, phi_0
         except Exception:
-            return 0.0, 0.0, 0.15, 1.57
+            return 0.0, 0.0, 0.0, 0.0
 
     def inverse_kinematics(self, l0: float, phi0: float) -> tuple[float, float]:
         x_c = l0 * math.cos(phi0)
@@ -114,6 +108,3 @@ class VMC:
         joint_torque: np.ndarray,
     ) -> np.ndarray:
         return np.linalg.solve(j_t, np.asarray(joint_torque, dtype=np.float64))
-
-
-DEFAULT_VMC = VMC(L1, L2, L3, L4, L5)
