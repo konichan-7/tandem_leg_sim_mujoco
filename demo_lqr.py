@@ -4,8 +4,8 @@ import time
 
 import mujoco.viewer
 
-from demo import PATHS
-from utils import DemoLqrController
+from demo import PATHS, STATE_NAMES
+from utils import DemoLqrController, Plotter
 
 
 def parse_args() -> argparse.Namespace:
@@ -15,7 +15,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def main(yaml_path: str) -> None:
-    controller = DemoLqrController(Path(yaml_path))
+    plotter = Plotter(STATE_NAMES)
+    controller = DemoLqrController(Path(yaml_path), plotter)
 
     def key_callback(keycode: int) -> None:
         if chr(keycode) == " ":
@@ -34,6 +35,8 @@ def main(yaml_path: str) -> None:
             sleep_time = controller.model.opt.timestep - (time.time() - step_start)
             if sleep_time > 0:
                 time.sleep(sleep_time)
+
+    plotter.render()
 
 
 if __name__ == "__main__":

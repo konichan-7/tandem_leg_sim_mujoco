@@ -20,6 +20,7 @@ from demo import (
 from utils.math_tools import angle_diff, quat_to_euler, wrap
 from utils.mujoco_io import ImuData, MujocoActuatorWriter, MujocoSensorReader
 from utils.pid import PID
+from utils.plotter import Plotter
 from utils.vmc import VMC
 
 sys.path.append(os.path.join(str(Path(__file__).resolve().parents[1]), "sp_lqr"))
@@ -32,7 +33,11 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 
 class DemoLqrController:
-    def __init__(self, yaml_path: Path = PATHS.lqr_yaml) -> None:
+    def __init__(
+        self,
+        yaml_path: Path = PATHS.lqr_yaml,
+        plotter: Plotter | None = None,
+    ) -> None:
         self.params = load_yaml(yaml_path)
         self.model = mujoco.MjModel.from_xml_path(str(PATHS.xml))
         self.data = mujoco.MjData(self.model)
@@ -91,6 +96,7 @@ class DemoLqrController:
         self.s = 0.0
         self.paused = False
         self.last_l0_print = 0.0
+        self.plotter = plotter
 
         self.data.qpos[2] = CONTROL.base_init_z
         mujoco.mj_forward(self.model, self.data)
@@ -236,6 +242,9 @@ class DemoLqrController:
             ],
             dtype=float,
         )
+        if self.plotter is not None:
+            self.plotter.record(self.data.time, expect_state, real_state)
+
         u = self.k @ (expect_state - real_state)
         f_bl = self.half_weight * math.cos(theta_ll) + self.l0_pid_l.calc(l0_l, dt)
         f_br = self.half_weight * math.cos(theta_lr) + self.l0_pid_r.calc(l0_r, dt)

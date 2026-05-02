@@ -98,3 +98,15 @@ SENSORS = DemoSensors()
 OFFSETS = DemoEncoderOffsets()
 VMC_GEOMETRY = DemoVmcGeometry()
 CONTROL = DemoControl()
+STATE_NAMES = (
+    "s",
+    "ds",
+    "yaw",
+    "dot_yaw",
+    "theta_ll",
+    "dot_theta_ll",
+    "theta_lr",
+    "dot_theta_lr",
+    "pitch",
+    "dot_pitch",
+)
