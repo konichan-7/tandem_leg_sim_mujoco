@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 
 
@@ -8,11 +6,9 @@ class Plotter:
         self,
         state_names: tuple[str, ...],
         print_interval: float = 0.05,
-        auto_open: bool = True,
     ) -> None:
         self.state_names = state_names
         self.print_interval = print_interval
-        self.auto_open = auto_open
         self.time: list[float] = []
         self.expected: list[np.ndarray] = []
         self.feedback: list[np.ndarray] = []
@@ -49,14 +45,15 @@ class Plotter:
 
     def render(self) -> None:
         if not self.time:
-            return None
+            return
 
         try:
             import plotly.graph_objects as go
+            import plotly.io as pio
             from plotly.subplots import make_subplots
         except ImportError:
             print("plotly is not installed, skip state plot rendering")
-            return None
+            return
 
         expected = np.vstack(self.expected)
         feedback = np.vstack(self.feedback)
@@ -96,5 +93,4 @@ class Plotter:
             title="Demo LQR State Tracking",
         )
         fig.update_xaxes(title_text="time [s]", row=len(self.state_names), col=1)
-
-        return None
+        pio.show(fig, renderer="browser")

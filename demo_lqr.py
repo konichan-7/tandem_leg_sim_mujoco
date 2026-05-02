@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 import time
 
+import mujoco
 import mujoco.viewer
 
 from demo import PATHS, STATE_NAMES
@@ -27,6 +28,12 @@ def main(yaml_path: str) -> None:
         controller.data,
         key_callback=key_callback,
     ) as viewer:
+        viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        viewer.cam.fixedcamid = mujoco.mj_name2id(
+            controller.model,
+            mujoco.mjtObj.mjOBJ_CAMERA,
+            "paper_right",
+        )
         while viewer.is_running():
             step_start = time.time()
             controller.step()
