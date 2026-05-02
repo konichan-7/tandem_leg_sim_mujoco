@@ -85,10 +85,11 @@ class DemoControl:
     lqr_start: float = 0.01
     stand_kp: float = 5.0
     stand_kd: float = 0.5
-    leg_force_kp: float = 5000.0
-    leg_force_kd: float = 20.0
-    leg_force_limit: float = 100.0
-    leg_force_integral_limit: float = 10.0
+    leg_force_kp: float = 1000.0
+    leg_force_ki: float = 1000.0
+    leg_force_kd: float = 40.0
+    leg_force_limit: float = 80.0
+    leg_force_integral_limit: float = 60.0
 
 
 PATHS = DemoPaths()

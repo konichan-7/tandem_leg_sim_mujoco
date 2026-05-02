@@ -68,7 +68,7 @@ class DemoLqrController:
         self.control_limits = self.params["lqr"]["control_limits"]
         self.l0_pid_l = PID(
             CONTROL.leg_force_kp,
-            0.0,
+            CONTROL.leg_force_ki,
             CONTROL.leg_force_kd,
             CONTROL.target_l0,
             output_limit=CONTROL.leg_force_limit,
@@ -76,7 +76,7 @@ class DemoLqrController:
         )
         self.l0_pid_r = PID(
             CONTROL.leg_force_kp,
-            0.0,
+            CONTROL.leg_force_ki,
             CONTROL.leg_force_kd,
             CONTROL.target_l0,
             output_limit=CONTROL.leg_force_limit,
@@ -96,10 +96,13 @@ class DemoLqrController:
         self.s = 0.0
         self.paused = False
         self.last_l0_print = 0.0
+        self.target_l0 = CONTROL.target_l0
         self.target_s = 0.0
         self.target_velocity = CONTROL.target_velocity
         self.target_yaw = CONTROL.target_yaw
         self.ignore_s_error = False
+        self.leg_length = np.zeros(2, dtype=float)
+        self.leg_force = np.zeros(2, dtype=float)
         self.wheel_torque = np.zeros(2, dtype=float)
         self.plotter = plotter
 
@@ -251,8 +254,12 @@ class DemoLqrController:
             self.plotter.record(self.data.time, expect_state, real_state)
 
         u = self.k @ (expect_state - real_state)
+        self.l0_pid_l.target = self.target_l0
+        self.l0_pid_r.target = self.target_l0
         f_bl = self.half_weight * math.cos(theta_ll) + self.l0_pid_l.calc(l0_l, dt)
         f_br = self.half_weight * math.cos(theta_lr) + self.l0_pid_r.calc(l0_r, dt)
+        self.leg_length = np.array([l0_l, l0_r])
+        self.leg_force = np.array([f_bl, f_br])
         j_l = self.vmc.mat_jrm(
             phi0_l,
             phi["left_phi1"],
