@@ -11,6 +11,12 @@ def angle_diff(a: float, b: float) -> float:
     return wrap(a - b)
 
 
+def move_towards(current: float, target: float, max_delta: float) -> float:
+    if current < target:
+        return min(current + max_delta, target)
+    return max(current - max_delta, target)
+
+
 def quat_to_euler(quat: np.ndarray) -> tuple[float, float]:
     w, x, y, z = quat
     pitch = wrap(math.asin(np.clip(2 * (w * y - z * x), -1, 1)))

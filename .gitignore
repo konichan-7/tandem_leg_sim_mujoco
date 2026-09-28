@@ -2,3 +2,4 @@
 MUJOCO_LOG.txt
 __pycache__/
 .codex/
+.DS_Store

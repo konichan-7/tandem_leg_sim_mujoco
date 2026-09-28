@@ -45,8 +45,7 @@ class MujocoActuatorWriter:
     ) -> None:
         self.data = data
         self.ids = {
-            name: model.actuator(actuator).id
-            for name, actuator in actuators.items()
+            name: model.actuator(actuator).id for name, actuator in actuators.items()
         }
 
     def set(self, name: str, value: float) -> None:
@@ -58,3 +57,28 @@ class MujocoActuatorWriter:
 
     def zero(self) -> None:
         self.data.ctrl[:] = 0.0
+
+
+def place_free_body_on_floor(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    floor: str,
+    clearance: float = 1e-3,
+) -> None:
+    mujoco.mj_forward(model, data)
+    floor_id = model.geom(floor).id
+    from_to = np.empty(6)
+    distance = min(
+        mujoco.mj_geomDistance(
+            model,
+            data,
+            floor_id,
+            geom_id,
+            model.stat.extent,
+            from_to,
+        )
+        for geom_id in range(model.ngeom)
+        if geom_id != floor_id
+    )
+    data.qpos[2] -= distance - clearance
+    mujoco.mj_forward(model, data)

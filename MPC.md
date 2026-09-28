@@ -58,11 +58,11 @@ $$-35 - J_{11} F_0 \le J_{12} T_p \le 35 - J_{11} F_0$$
 
 ### Phase 2: Python端代码生成与 C++ MPC 封装
 **目标文件**：`sp_lqr` 目录及 `mpc_controller.cpp`
-1. **Python端**：利用已有的 10维状态、4维输入的全动力学连续矩阵 $A_c, B_c$，离散化为 $A_d, B_d$。设置合理的 Horizon $N$（当前为 10），由 `generate_mpc_c_code.py` 统一生成 `osqp_codegen/`、`mpc_solver_layout.*`、`mpc_solver.*` 与元数据。
+1. **Python端**：利用已有的 10维状态、4维输入的全动力学连续矩阵 $A_c, B_c$，离散化为 $A_d, B_d$。设置合理的 Horizon $N$（当前 demo 为 20），终端代价 $Q_N$ 使用离散代数 Riccati方程解，由 `generate_mpc_c_code.py` 统一生成 `osqp_codegen/`、`mpc_solver_layout.*`、`mpc_solver.*` 与元数据。
 2. **C++ 端**：创建 `MpcController`，继承现有控制层接口。
 3. **状态注入**：将 10维状态反馈严格对齐填充至一维数组。
 4. **约束更新**：在 `calc()` 中，拉取当前的 $F_0$ 与 $J^T$，更新约束边界，并通过 OSQP 的矩阵/向量更新接口同步到求解器。
-5. **当前实时参数**：生成器中当前使用的实时参数为 `MODEL_NNZ_THRESHOLD = 1e-5`、`OSQP_EPS_ABS = 1e-2`、`OSQP_EPS_REL = 1e-2`、`OSQP_MAX_ITER = 50`、`OSQP_CHECK_TERMINATION = 10`、`OSQP_ADAPTIVE_RHO = False`、`OSQP_CHECK_DUALGAP = False`。
+5. **当前实时参数**：生成器中当前使用的实时参数为 `MODEL_NNZ_THRESHOLD = 1e-5`、`OSQP_EPS_ABS = 1e-4`、`OSQP_EPS_REL = 1e-4`、`OSQP_MAX_ITER = 200`、`OSQP_CHECK_TERMINATION = 10`、`OSQP_ADAPTIVE_RHO = False`、`OSQP_CHECK_DUALGAP = False`。
 6. **内存放置**：当前策略是将 `mpc_workspace.c` 的大块 `.data` 放入 `RAM_D1`，而求解热工作数组和运行期 workspace 优先放在 `DTCM`。
 
 ### Phase 3: RTOS 双重频率调度

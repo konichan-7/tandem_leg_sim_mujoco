@@ -1,7 +1,7 @@
 mujoco
+glfw
 scipy
 pyyaml
 osqp
 sympy
 control
-plotly

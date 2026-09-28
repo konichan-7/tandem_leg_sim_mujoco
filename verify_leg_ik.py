@@ -1,100 +1,47 @@
-import mujoco
-import mujoco.viewer
 import numpy as np
-import time
-import math
 
-from utils.vmc import DEFAULT_VMC
+from demo import VMC_GEOMETRY
+from utils.math_tools import angle_diff
+from utils.vmc import VMC
 
 
-def main():
-    model = mujoco.MjModel.from_xml_path("MJCF/balance_bot.xml")
-    data = mujoco.MjData(model)
+def verify_inverse_kinematics() -> tuple[float, float]:
+    vmc = VMC(
+        VMC_GEOMETRY.l1,
+        VMC_GEOMETRY.l2,
+        VMC_GEOMETRY.l3,
+        VMC_GEOMETRY.l4,
+        VMC_GEOMETRY.l5,
+    )
+    max_length_error = 0.0
+    max_angle_error = 0.0
 
-    l_front_idx = model.joint("Left_front_joint").qposadr[0]
-    l_rear_idx = model.joint("Left_rear_joint").qposadr[0]
-    r_front_idx = model.joint("Right_front_joint").qposadr[0]
-    r_rear_idx = model.joint("Right_rear_joint").qposadr[0]
+    for target_length in np.linspace(0.05, 0.30, 26):
+        for target_angle in np.linspace(0.7, 2.4, 18):
+            phi1, phi4 = vmc.inverse_kinematics(target_length, target_angle)
+            _, _, actual_length, actual_angle = vmc.forward_kinematics(phi1, phi4)
+            max_length_error = max(
+                max_length_error,
+                abs(actual_length - target_length),
+            )
+            max_angle_error = max(
+                max_angle_error,
+                abs(angle_diff(actual_angle, target_angle)),
+            )
 
-    l_front_ctrl = model.actuator("Left_front_motor").id
-    l_rear_ctrl = model.actuator("Left_rear_motor").id
-    r_front_ctrl = model.actuator("Right_front_motor").id
-    r_rear_ctrl = model.actuator("Right_rear_motor").id
+    tolerance = 1e-10
+    if max(max_length_error, max_angle_error) > tolerance:
+        raise RuntimeError(
+            f"IK/FK mismatch: length={max_length_error:.3e}, "
+            f"angle={max_angle_error:.3e}"
+        )
+    return max_length_error, max_angle_error
 
-    target_L0, target_phi0 = 0.25, math.pi / 4
-    actual_L0, actual_phi0, current_target_L0 = 0.25, math.pi / 2, 0.25
-    paused = False
 
-    print("Starting inverse_kinematics Verification...")
-    print("TIP: Use the 'Watch' panel in the MuJoCo GUI (F2) to monitor variables.")
-    print("Press Ctrl+C in terminal to exit.")
-
-    base_init_pos = np.array([0, 0, 0.6])
-    base_init_quat = np.array([1, 0, 0, 0])
-
-    with mujoco.viewer.launch_passive(model, data) as viewer:
-        while viewer.is_running():
-            step_start = time.time()
-
-            if not paused:
-                # Keep suspended
-                data.qpos[0:3] = base_init_pos
-                data.qpos[3:7] = base_init_quat
-                data.qvel[0:6] = 0
-
-                # Command
-                current_target_L0 = target_L0 + 0.05 * math.sin(data.time * 2)
-                p1, p4 = DEFAULT_VMC.inverse_kinematics(
-                    current_target_L0, math.pi - target_phi0
-                )
-
-                # inverse_kinematics -> Joint Angles
-                q_l_front_target, q_l_rear_target = math.pi - p1, p4
-                q_r_front_target, q_r_rear_target = p1 - math.pi, -p4
-
-                print(
-                    f"phi1_l: {math.degrees(data.qpos[l_front_idx]):.2f}°, phi4_l: {math.degrees(data.qpos[l_rear_idx]):.2f}° | phi1_r: {math.degrees(data.qpos[r_front_idx]):.2f}°, phi4_r: {math.degrees(data.qpos[r_rear_idx]):.2f}°"
-                )
-
-                # PD control
-                kp, kd = 1000.0, 50.0
-                data.ctrl[l_front_ctrl] = (
-                    kp * (q_l_front_target - data.qpos[l_front_idx])
-                    - kd * data.qvel[model.joint("left_front_joint").dofadr[0]]
-                )
-                data.ctrl[l_rear_ctrl] = (
-                    kp * (q_l_rear_target - data.qpos[l_rear_idx])
-                    - kd * data.qvel[model.joint("left_rear_joint").dofadr[0]]
-                )
-                data.ctrl[r_front_ctrl] = (
-                    kp * (q_r_front_target - data.qpos[r_front_idx])
-                    - kd * data.qvel[model.joint("right_front_joint").dofadr[0]]
-                )
-                data.ctrl[r_rear_ctrl] = (
-                    kp * (q_r_rear_target - data.qpos[r_rear_idx])
-                    - kd * data.qvel[model.joint("right_rear_joint").dofadr[0]]
-                )
-
-                # FK Verification
-                phi_l1, phi_l4 = math.pi - data.qpos[l_front_idx], data.qpos[l_rear_idx]
-                _, _, actual_L0, raw_phi0 = DEFAULT_VMC.forward_kinematics(
-                    phi_l1, phi_l4
-                )
-                actual_phi0 = math.pi - raw_phi0
-                print(
-                    f"Time: {data.time:.2f}s | Target phi0: {target_phi0:.3f} | Actual phi0: {actual_phi0:.3f} | Error: {abs(target_phi0-actual_phi0):.4f}"
-                )
-
-                # Log to terminal every 0.5s
-                # if int(data.time * 1000) % 500 == 0:
-                #     print(f"T: {data.time:.1f}s | Target L0: {current_target_L0:.3f} | Actual L0: {actual_L0:.3f} | Error: {abs(current_target_L0-actual_L0):.4f}")
-
-                mujoco.mj_step(model, data)
-
-            viewer.sync()
-            elapsed = time.time() - step_start
-            if elapsed < model.opt.timestep:
-                time.sleep(model.opt.timestep - elapsed)
+def main() -> None:
+    length_error, angle_error = verify_inverse_kinematics()
+    print(f"max length error: {length_error:.3e}")
+    print(f"max angle error: {angle_error:.3e}")
 
 
 if __name__ == "__main__":

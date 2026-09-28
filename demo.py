@@ -8,7 +8,8 @@ ROOT = Path(__file__).parent
 @dataclass(frozen=True)
 class DemoPaths:
     xml: Path = ROOT / "MJCF" / "demo" / "demo.xml"
-    lqr_yaml: Path = ROOT / "configs" / "demo.yaml"
+    lqr_yaml: Path = ROOT / "configs" / "lqr.yaml"
+    mpc_yaml: Path = ROOT / "configs" / "mpc.yaml"
 
 
 @dataclass(frozen=True)
@@ -77,11 +78,12 @@ class DemoVmcGeometry:
 
 @dataclass(frozen=True)
 class DemoControl:
-    base_init_z: float = 0.15
     target_l0: float = 0.1
     target_phi0: float = math.pi / 2
+    target_s: float = 0.0
     target_velocity: float = 0.0
     target_yaw: float = 0.0
+    target_yaw_rate: float = 0.0
     lqr_start: float = 0.01
     stand_kp: float = 5.0
     stand_kd: float = 0.5
@@ -90,6 +92,7 @@ class DemoControl:
     leg_force_kd: float = 40.0
     leg_force_limit: float = 80.0
     leg_force_integral_limit: float = 60.0
+    viewer_fps: float = 60.0
 
 
 PATHS = DemoPaths()
@@ -99,15 +102,10 @@ SENSORS = DemoSensors()
 OFFSETS = DemoEncoderOffsets()
 VMC_GEOMETRY = DemoVmcGeometry()
 CONTROL = DemoControl()
-STATE_NAMES = (
-    "s",
-    "ds",
-    "yaw",
-    "dot_yaw",
-    "theta_ll",
-    "dot_theta_ll",
-    "theta_lr",
-    "dot_theta_lr",
-    "pitch",
-    "dot_pitch",
-)
+KEY_COMMANDS = {
+    "0": (0.0, 0.0),
+    "1": (1.0, 0.0),
+    "2": (-1.0, 0.0),
+    "3": (0.0, -1.0),
+    "4": (0.0, 1.0),
+}

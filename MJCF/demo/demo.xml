@@ -38,7 +38,6 @@
   <worldbody>
     <light pos="0 0 2" dir="0 0 -1" diffuse="1 1 1" />
     <geom name="floor" type="plane" size="10 10 0.1" material="grid" />
-    <camera name="paper_right" pos="0 -1.5 0.32" xyaxes="1 0 0 0 0 1" fovy="32" />
 
     <body name="base_link" pos="0 0 0.3">
       <freejoint />

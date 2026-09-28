@@ -17,10 +17,14 @@ from demo import (
     SENSORS,
     VMC_GEOMETRY,
 )
-from utils.math_tools import angle_diff, quat_to_euler, wrap
-from utils.mujoco_io import ImuData, MujocoActuatorWriter, MujocoSensorReader
+from utils.math_tools import angle_diff, move_towards, quat_to_euler, wrap
+from utils.mujoco_io import (
+    ImuData,
+    MujocoActuatorWriter,
+    MujocoSensorReader,
+    place_free_body_on_floor,
+)
 from utils.pid import PID
-from utils.plotter import Plotter
 from utils.vmc import VMC
 
 sys.path.append(os.path.join(str(Path(__file__).resolve().parents[1]), "sp_lqr"))
@@ -36,7 +40,6 @@ class DemoLqrController:
     def __init__(
         self,
         yaml_path: Path = PATHS.lqr_yaml,
-        plotter: Plotter | None = None,
     ) -> None:
         self.params = load_yaml(yaml_path)
         self.model = mujoco.MjModel.from_xml_path(str(PATHS.xml))
@@ -66,6 +69,8 @@ class DemoLqrController:
             dtype=float,
         )
         self.control_limits = self.params["lqr"]["control_limits"]
+        self.target_leg_angle = self.params["control"]["target_leg_angle"]
+        self.command_config = self.params["command"]
         self.l0_pid_l = PID(
             CONTROL.leg_force_kp,
             CONTROL.leg_force_ki,
@@ -90,27 +95,69 @@ class DemoLqrController:
         self.last_phi0_r = 0.0
         self.last_pitch = 0.0
         self.last_yaw = 0.0
+        self.yaw_unwrapped = 0.0
         self.phi0_ready = False
         self.pitch_ready = False
         self.yaw_ready = False
         self.s = 0.0
         self.paused = False
-        self.last_l0_print = 0.0
         self.target_l0 = CONTROL.target_l0
-        self.target_s = 0.0
+        self.target_s = CONTROL.target_s
         self.target_velocity = CONTROL.target_velocity
         self.target_yaw = CONTROL.target_yaw
-        self.ignore_s_error = False
+        self.target_yaw_rate = CONTROL.target_yaw_rate
+        self.desired_velocity = CONTROL.target_velocity
+        self.desired_yaw_rate = CONTROL.target_yaw_rate
+        self.linear_error_integral = 0.0
         self.leg_length = np.zeros(2, dtype=float)
         self.leg_force = np.zeros(2, dtype=float)
         self.wheel_torque = np.zeros(2, dtype=float)
-        self.plotter = plotter
-
-        self.data.qpos[2] = CONTROL.base_init_z
-        mujoco.mj_forward(self.model, self.data)
+        place_free_body_on_floor(self.model, self.data, "floor")
+        phi = self.leg_phi()
+        l0_l = self.vmc.forward_kinematics(
+            phi["left_phi1"],
+            phi["left_phi4"],
+        )[2]
+        l0_r = self.vmc.forward_kinematics(
+            phi["right_phi1"],
+            phi["right_phi4"],
+        )[2]
+        self.l0_pid_l.clear(CONTROL.target_l0 - l0_l)
+        self.l0_pid_r.clear(CONTROL.target_l0 - l0_r)
 
     def toggle_pause(self) -> None:
         self.paused = not self.paused
+
+    def command(self, linear_direction: float, yaw_direction: float) -> None:
+        desired_velocity = linear_direction * self.command_config["linear_velocity"]
+        desired_yaw_rate = yaw_direction * self.command_config["yaw_rate"]
+        if (
+            desired_velocity == self.desired_velocity
+            and desired_yaw_rate == self.desired_yaw_rate
+        ):
+            return
+
+        self.target_s = self.s
+        self.target_yaw = self.yaw_unwrapped if self.yaw_ready else 0.0
+        self.linear_error_integral = 0.0
+        self.desired_velocity = desired_velocity
+        self.desired_yaw_rate = desired_yaw_rate
+        print(
+            f"desired_velocity={self.desired_velocity:.2f} "
+            f"desired_yaw_rate={self.desired_yaw_rate:.2f}"
+        )
+
+    def update_command(self, dt: float) -> None:
+        self.target_velocity = move_towards(
+            self.target_velocity,
+            self.desired_velocity,
+            self.command_config["linear_acceleration"] * dt,
+        )
+        self.target_yaw_rate = move_towards(
+            self.target_yaw_rate,
+            self.desired_yaw_rate,
+            self.command_config["yaw_acceleration"] * dt,
+        )
 
     def leg_targets(self, l0: float, phi0: float) -> dict[str, float]:
         phi1, phi4 = self.vmc.inverse_kinematics(l0, phi0)
@@ -164,9 +211,12 @@ class DemoLqrController:
         pitch, yaw = quat_to_euler(self.imu().quat)
 
         if self.yaw_ready:
-            dot_yaw = angle_diff(yaw, self.last_yaw) / dt
+            yaw_delta = angle_diff(yaw, self.last_yaw)
+            self.yaw_unwrapped += yaw_delta
+            dot_yaw = yaw_delta / dt
         else:
             dot_yaw = 0.0
+            self.yaw_unwrapped = yaw
             self.yaw_ready = True
         self.last_yaw = yaw
 
@@ -177,7 +227,7 @@ class DemoLqrController:
             self.pitch_ready = True
         self.last_pitch = pitch
 
-        return pitch, yaw, dot_pitch, dot_yaw
+        return pitch, self.yaw_unwrapped, dot_pitch, dot_yaw
 
     def leg_angle_rates(
         self,
@@ -198,12 +248,37 @@ class DemoLqrController:
         return dot_phi0_l, dot_phi0_r
 
     def lqr_control(self, dt: float) -> None:
+        self.update_command(dt)
         dtheta_l = self.sensor.joint_velocity(SENSORS.left_wheel_vel)
         dtheta_r = self.sensor.joint_velocity(SENSORS.right_wheel_vel)
         ds = 0.5 * self.params["R_w"] * (dtheta_l + dtheta_r)
         self.s += ds * dt
 
         pitch, yaw, dot_pitch, dot_yaw = self.base_state(dt)
+        yaw_rate_reference = dot_yaw + float(
+            np.clip(
+                self.target_yaw_rate - dot_yaw,
+                -self.command_config["yaw_tracking_error_limit"],
+                self.command_config["yaw_tracking_error_limit"],
+            )
+        )
+        self.target_yaw = yaw
+        if self.target_velocity:
+            if (
+                self.linear_error_integral
+                or self.target_velocity * (ds - self.target_velocity) > 0.0
+            ):
+                self.linear_error_integral = float(
+                    np.clip(
+                        self.linear_error_integral
+                        + self.command_config["linear_integral_gain"]
+                        * (self.target_velocity - ds)
+                        * dt,
+                        -self.command_config["linear_error_limit"],
+                        self.command_config["linear_error_limit"],
+                    )
+                )
+            self.target_s = self.s + self.linear_error_integral
         phi = self.leg_phi()
         p2l, p3l, l0_l, phi0_l = self.vmc.forward_kinematics(
             phi["left_phi1"],
@@ -213,10 +288,6 @@ class DemoLqrController:
             phi["right_phi1"],
             phi["right_phi4"],
         )
-        if self.data.time - self.last_l0_print >= 0.05:
-            self.last_l0_print = self.data.time
-            print(f"L0_l={l0_l:.6f} L0_r={l0_r:.6f}")
-
         theta_ll = wrap(-math.pi / 2 + phi0_l + pitch)
         theta_lr = wrap(-math.pi / 2 + phi0_r + pitch)
         dot_phi0_l, dot_phi0_r = self.leg_angle_rates(phi0_l, phi0_r, dt)
@@ -224,8 +295,8 @@ class DemoLqrController:
             [
                 self.s,
                 ds,
-                yaw,
-                dot_yaw,
+                -yaw,
+                -dot_yaw,
                 theta_ll,
                 dot_phi0_l + dot_pitch,
                 theta_lr,
@@ -237,22 +308,19 @@ class DemoLqrController:
         )
         expect_state = np.array(
             [
-                self.s if self.ignore_s_error else self.target_s,
+                self.target_s,
                 self.target_velocity,
-                self.target_yaw,
+                -self.target_yaw,
+                -yaw_rate_reference,
+                self.target_leg_angle,
                 0.0,
-                0.1,
-                0.0,
-                0.1,
+                self.target_leg_angle,
                 0.0,
                 0.0,
                 0.0,
             ],
             dtype=float,
         )
-        if self.plotter is not None:
-            self.plotter.record(self.data.time, expect_state, real_state)
-
         u = self.k @ (expect_state - real_state)
         self.l0_pid_l.target = self.target_l0
         self.l0_pid_r.target = self.target_l0
