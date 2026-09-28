@@ -50,7 +50,7 @@ macOS 上运行 MuJoCo viewer 时使用 `mjpython`：
 .venv/bin/mjpython mpc_controller.py
 ```
 
-LQR 默认读取 `configs/lqr.yaml`，MPC 默认读取 `configs/mpc.yaml`，两者共用 `MJCF/demo/demo.xml`。相机为自由视角，可用鼠标移动；运行时按住 `1/2` 给定 $\pm0.8\,\mathrm{m/s}$ 前进或后退速度，按住 `3/4` 给定左右转 $4.0\,\mathrm{rad/s}$ 角速度，松开后目标指令立即归零，空格键暂停或继续。前进和转向键可以组合使用；控制器按 YAML 中的 `linear_acceleration` 和 `yaw_acceleration` 将目标规划成斜坡，并用 `yaw_tracking_error_limit` 限制偏航角速度参考与实测值的差，避免持续转向时挤占平衡控制的力矩裕量。
+LQR 默认读取 `configs/lqr.yaml`，MPC 默认读取 `configs/mpc.yaml`，两者共用 `MJCF/demo/demo.xml`。相机为自由视角，可用鼠标移动；运行时按住 `1/2` 给定 $\pm0.8\,\mathrm{m/s}$ 前进或后退速度，按住 `3/4` 给定左右转 $4.0\,\mathrm{rad/s}$ 角速度，按住 `5/6` 升高或降低腿长，松开按键即停止对应输入，空格键暂停或继续。按键可以组合使用；控制器按 YAML 中的 `linear_acceleration` 和 `yaw_acceleration` 将目标规划成斜坡，并用 `yaw_tracking_error_limit` 限制偏航角速度参考与实测值的差，避免持续转向时挤占平衡控制的力矩裕量。
 
 ## 验证
 

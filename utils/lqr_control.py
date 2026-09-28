@@ -108,6 +108,7 @@ class DemoLqrController:
         self.target_yaw_rate = CONTROL.target_yaw_rate
         self.desired_velocity = CONTROL.target_velocity
         self.desired_yaw_rate = CONTROL.target_yaw_rate
+        self.leg_length_direction = 0.0
         self.linear_error_integral = 0.0
         self.leg_length = np.zeros(2, dtype=float)
         self.leg_force = np.zeros(2, dtype=float)
@@ -128,23 +129,32 @@ class DemoLqrController:
     def toggle_pause(self) -> None:
         self.paused = not self.paused
 
-    def command(self, linear_direction: float, yaw_direction: float) -> None:
+    def command(
+        self,
+        linear_direction: float,
+        yaw_direction: float,
+        leg_length_direction: float,
+    ) -> None:
         desired_velocity = linear_direction * self.command_config["linear_velocity"]
         desired_yaw_rate = yaw_direction * self.command_config["yaw_rate"]
-        if (
-            desired_velocity == self.desired_velocity
-            and desired_yaw_rate == self.desired_yaw_rate
-        ):
+        motion_changed = (
+            desired_velocity != self.desired_velocity
+            or desired_yaw_rate != self.desired_yaw_rate
+        )
+        if not motion_changed and leg_length_direction == self.leg_length_direction:
             return
 
-        self.target_s = self.s
-        self.target_yaw = self.yaw_unwrapped if self.yaw_ready else 0.0
-        self.linear_error_integral = 0.0
-        self.desired_velocity = desired_velocity
-        self.desired_yaw_rate = desired_yaw_rate
+        if motion_changed:
+            self.target_s = self.s
+            self.target_yaw = self.yaw_unwrapped if self.yaw_ready else 0.0
+            self.linear_error_integral = 0.0
+            self.desired_velocity = desired_velocity
+            self.desired_yaw_rate = desired_yaw_rate
+        self.leg_length_direction = leg_length_direction
         print(
             f"desired_velocity={self.desired_velocity:.2f} "
-            f"desired_yaw_rate={self.desired_yaw_rate:.2f}"
+            f"desired_yaw_rate={self.desired_yaw_rate:.2f} "
+            f"target_leg_length={self.target_l0:.3f}"
         )
 
     def update_command(self, dt: float) -> None:
@@ -157,6 +167,16 @@ class DemoLqrController:
             self.target_yaw_rate,
             self.desired_yaw_rate,
             self.command_config["yaw_acceleration"] * dt,
+        )
+        self.target_l0 = float(
+            np.clip(
+                self.target_l0
+                + self.leg_length_direction
+                * self.command_config["leg_length_velocity"]
+                * dt,
+                self.command_config["leg_length_min"],
+                self.command_config["leg_length_max"],
+            )
         )
 
     def leg_targets(self, l0: float, phi0: float) -> dict[str, float]:

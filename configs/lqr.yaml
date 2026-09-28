@@ -33,6 +33,9 @@ command:
   linear_integral_gain: 1.5
   linear_error_limit: 0.60
   yaw_tracking_error_limit: 0.80
+  leg_length_velocity: 0.05
+  leg_length_min: 0.10
+  leg_length_max: 0.18
 
 lqr:
   state_limits:

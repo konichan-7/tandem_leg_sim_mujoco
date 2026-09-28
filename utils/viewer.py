@@ -14,7 +14,12 @@ class DemoController(Protocol):
     data: mujoco.MjData
     paused: bool
 
-    def command(self, linear_direction: float, yaw_direction: float) -> None: ...
+    def command(
+        self,
+        linear_direction: float,
+        yaw_direction: float,
+        leg_length_direction: float,
+    ) -> None: ...
 
     def toggle_pause(self) -> None: ...
 
@@ -27,6 +32,8 @@ class MacKeyboard:
         "2": 19,
         "3": 20,
         "4": 21,
+        "5": 23,
+        "6": 22,
     }
 
     def __init__(self) -> None:
@@ -41,18 +48,20 @@ class MacKeyboard:
 
     def command_direction(
         self,
-        commands: dict[str, tuple[float, float]],
-    ) -> tuple[float, float]:
+        commands: dict[str, tuple[float, float, float]],
+    ) -> tuple[float, float, float]:
         linear_direction = 0.0
         yaw_direction = 0.0
-        for key, (linear, yaw) in commands.items():
+        leg_length_direction = 0.0
+        for key, (linear, yaw, leg_length) in commands.items():
             if key in self.keycodes and self.core_graphics.CGEventSourceKeyState(
                 0,
                 self.keycodes[key],
             ):
                 linear_direction += linear
                 yaw_direction += yaw
-        return linear_direction, yaw_direction
+                leg_length_direction += leg_length
+        return linear_direction, yaw_direction, leg_length_direction
 
 
 class GlfwViewer:
@@ -183,17 +192,19 @@ class GlfwViewer:
 
     def command_direction(
         self,
-        commands: dict[str, tuple[float, float]],
-    ) -> tuple[float, float]:
+        commands: dict[str, tuple[float, float, float]],
+    ) -> tuple[float, float, float]:
         linear_direction = 0.0
         yaw_direction = 0.0
+        leg_length_direction = 0.0
         for keycode in self.pressed_keys:
             key = chr(keycode)
             if key in commands:
-                linear, yaw = commands[key]
+                linear, yaw, leg_length = commands[key]
                 linear_direction += linear
                 yaw_direction += yaw
-        return linear_direction, yaw_direction
+                leg_length_direction += leg_length
+        return linear_direction, yaw_direction, leg_length_direction
 
     def is_running(self) -> bool:
         return not glfw.window_should_close(self.window)
@@ -219,7 +230,7 @@ class GlfwViewer:
 
 def run_glfw(
     controller: DemoController,
-    commands: dict[str, tuple[float, float]],
+    commands: dict[str, tuple[float, float, float]],
     fps: float,
     title: str,
 ) -> None:
@@ -254,7 +265,7 @@ def run_glfw(
 
 def run_mujoco_viewer(
     controller: DemoController,
-    commands: dict[str, tuple[float, float]],
+    commands: dict[str, tuple[float, float, float]],
     fps: float,
 ) -> None:
     keyboard = MacKeyboard()
@@ -292,7 +303,7 @@ def run_mujoco_viewer(
 
 def run_interactive(
     controller: DemoController,
-    commands: dict[str, tuple[float, float]],
+    commands: dict[str, tuple[float, float, float]],
     fps: float,
     title: str,
 ) -> None:
