@@ -1,3 +1,5 @@
 .vscode/
 MUJOCO_LOG.txt
 __pycache__/
+.venv/
+.DS_Store

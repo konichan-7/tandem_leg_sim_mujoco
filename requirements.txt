@@ -1,3 +1,5 @@
-mujoco
+mujoco>=3.11,<4
+numpy
 scipy
 pyyaml
+trimesh>=4

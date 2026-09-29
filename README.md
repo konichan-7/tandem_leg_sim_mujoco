@@ -1,5 +1,14 @@
 # tandem_leg_sim_mujoco
 MuJoCo环境下的串联腿仿真
+
+当前 hero 机器人闭链模型：[MJCF/leg_hero.xml](MJCF/leg_hero.xml)。启动命令：
+
+```bash
+.venv/bin/mjpython -m mujoco.viewer --mjcf MJCF/leg_hero.xml
+```
+
+闭链拓扑、云台估算惯量、力矩接口及验证结果见 [模型说明](MJCF/README.md)。以下为原项目的配置示例，不是当前 hero 模型参数。
+
 # config
 ```yaml
 # 基本物理常数
