@@ -17,12 +17,15 @@ def check_source(model: mujoco.MjModel) -> None:
     for link in urdf.findall("link"):
         name = link.attrib["name"]
         body = model.body(name)
-        if name == "yaw_link":
+        if name == "yaw_link" or name.startswith("right_"):
             continue
         inertial = link.find("inertial")
         mass = float(inertial.find("mass").attrib["value"])
         if not np.isclose(body.mass[0], mass, rtol=1e-12):
             raise ValueError(f"{name}: mass differs from URDF")
+        center = np.fromstring(inertial.find("origin").attrib["xyz"], sep=" ")
+        if not np.allclose(body.ipos, center, rtol=0, atol=1e-12):
+            raise ValueError(f"{name}: center of mass differs from URDF")
         values = inertial.find("inertia").attrib
         expected = np.array(
             [
@@ -43,6 +46,37 @@ def check_source(model: mujoco.MjModel) -> None:
         expected = np.fromstring(joint.find("axis").attrib["xyz"], sep=" ")
         if not np.allclose(model.joint(name).axis, expected):
             raise ValueError(f"{name}: axis differs from URDF")
+
+
+def check_symmetry(model: mujoco.MjModel) -> None:
+    data = mujoco.MjData(model)
+    index = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_NUMERIC, "leg_inertia_reference_qpos"
+    )
+    if index < 0 or model.numeric_size[index] != model.nq:
+        raise ValueError("Missing inertial symmetry reference pose")
+    start = model.numeric_adr[index]
+    data.qpos[:] = model.numeric_data[start : start + model.nq]
+    mujoco.mj_kinematics(model, data)
+    mirror = np.diag([1.0, -1.0, 1.0])
+    for right in range(model.nbody):
+        name = model.body(right).name
+        if not name.startswith("right_"):
+            continue
+        left = model.body(name.replace("right_", "left_", 1)).id
+        if not np.isclose(model.body_mass[right], model.body_mass[left], rtol=1e-12):
+            raise ValueError(f"{name}: asymmetric mass")
+        if not np.allclose(
+            data.xipos[right], mirror @ data.xipos[left], rtol=0, atol=1e-10
+        ):
+            raise ValueError(f"{name}: asymmetric center of mass")
+        left_axes = mirror @ data.ximat[left].reshape(3, 3)
+        right_axes = data.ximat[right].reshape(3, 3)
+        expected = (left_axes * model.body_inertia[left]) @ left_axes.T
+        actual = (right_axes * model.body_inertia[right]) @ right_axes.T
+        if not np.allclose(actual, expected, rtol=1e-9, atol=1e-12):
+            raise ValueError(f"{name}: asymmetric inertia tensor")
+    print("Leg mass, COM and inertia mirror checks passed")
 
 
 def simulate(fixed_base: bool, driven: bool, duration: float = 5.0) -> None:
@@ -103,6 +137,7 @@ def simulate(fixed_base: bool, driven: bool, duration: float = 5.0) -> None:
 if __name__ == "__main__":
     model = mujoco.MjModel.from_xml_path(str(MODEL))
     check_source(model)
+    check_symmetry(model)
     print(
         f"MuJoCo {mujoco.__version__}: {model.nbody - 1} bodies, "
         f"{model.nq} qpos, {model.nv} velocities, {model.nu} motors, "

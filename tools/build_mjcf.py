@@ -1,9 +1,11 @@
 from pathlib import Path
+from copy import deepcopy
 import xml.etree.ElementTree as ET
 
 import mujoco
 import numpy as np
 import trimesh
+from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +28,70 @@ def vector(element: ET.Element, key: str) -> np.ndarray:
 
 def stl(name: str) -> trimesh.Trimesh:
     return trimesh.load_mesh(URDF.parent / f"{name}.STL")
+
+
+def mirror_leg_inertias(root: ET.Element) -> None:
+    source = deepcopy(root)
+    source.find("compiler").set("meshdir", str(URDF.parent))
+    model = mujoco.MjModel.from_xml_string(ET.tostring(source, encoding="unicode"))
+    data = mujoco.MjData(model)
+    mujoco.mj_kinematics(model, data)
+    right = [i for i in range(model.nbody) if model.body(i).name.startswith("right_")]
+    left = [
+        model.body(model.body(i).name.replace("right_", "left_", 1)).id for i in right
+    ]
+    right_sites = model.eq_obj2id[2:]
+    target_bodies = data.xpos[left][:, [0, 2]].copy()
+    target_sites = data.site_xpos[model.eq_obj2id[:2]][:, [0, 2]].copy()
+    qpos = [
+        model.jnt_qposadr[model.body_jntadr[i]]
+        for i in right
+        if model.body(i).name != "right_wheel_link"
+    ]
+
+    def alignment(angles: np.ndarray) -> np.ndarray:
+        data.qpos[qpos] = angles
+        mujoco.mj_kinematics(model, data)
+        return np.concatenate(
+            (
+                (data.xpos[right][:, [0, 2]] - target_bodies).ravel(),
+                (data.site_xpos[right_sites][:, [0, 2]] - target_sites).ravel(),
+            )
+        )
+
+    result = least_squares(
+        alignment, np.zeros(len(qpos)), gtol=1e-12, xtol=1e-12, ftol=1e-12
+    )
+    if not result.success or np.max(np.abs(alignment(result.x))) > 1e-5:
+        raise ValueError("Leg geometry cannot be aligned for inertial mirroring")
+    wheel = model.joint("right_wheel_joint")
+    rotation = Rotation.from_matrix(
+        data.xmat[model.body("right_wheel_link").id].reshape(3, 3)
+    )
+    data.qpos[wheel.qposadr[0]] -= rotation.as_rotvec()[1] / wheel.axis[1]
+    mujoco.mj_kinematics(model, data)
+    mirror = np.diag([1.0, -1.0, 1.0])
+    for left_id, right_id in zip(left, right):
+        frame = data.xmat[right_id].reshape(3, 3)
+        center = frame.T @ (mirror @ data.xipos[left_id] - data.xpos[right_id])
+        axes = frame.T @ mirror @ data.ximat[left_id].reshape(3, 3)
+        inertia = (axes * model.body_inertia[left_id]) @ axes.T
+        inertial = root.find(f".//body[@name='{model.body(right_id).name}']/inertial")
+        inertial.set("mass", f"{model.body_mass[left_id]:.15g}")
+        inertial.set("pos", numbers(center))
+        inertial.set(
+            "fullinertia", numbers(inertia[[0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]])
+        )
+    custom = root.find("custom")
+    ET.SubElement(
+        custom, "numeric", name="leg_inertia_reference_qpos", data=numbers(data.qpos)
+    )
+    ET.SubElement(
+        custom,
+        "text",
+        name="leg_inertia_status",
+        data="Right leg mass, COM and inertia mirrored from left leg in aligned joint frames; URDF and geometry unchanged",
+    )
 
 
 def build() -> None:
@@ -69,7 +135,9 @@ def build() -> None:
     ET.SubElement(visual, "headlight", ambient="0.4 0.4 0.4", diffuse="0.8 0.8 0.8")
     ET.SubElement(visual, "global", azimuth="135", elevation="-20")
     asset = ET.SubElement(root, "asset")
-    stl("base_link").export(URDF.parent / "base_link.obj")
+    (URDF.parent / "base_link.obj").write_text(
+        stl("base_link").export(file_type="obj").rstrip() + "\n"
+    )
     for name in links:
         extension = "obj" if name == "base_link" else "STL"
         ET.SubElement(
@@ -269,6 +337,7 @@ def build() -> None:
         data="ESTIMATED from non-watertight STL with corrected winding at 2700 kg/m^3; mass and inertia require calibration",
     )
     ET.SubElement(custom, "numeric", name="yaw_density_kg_m3", data=str(YAW_DENSITY))
+    mirror_leg_inertias(root)
     ET.indent(root, space="  ")
     ET.ElementTree(root).write(OUTPUT, encoding="utf-8", xml_declaration=True)
     model = mujoco.MjModel.from_xml_path(str(OUTPUT))

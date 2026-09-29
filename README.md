@@ -1,104 +1,69 @@
-# tandem_leg_sim_mujoco
-MuJoCo环境下的串联腿仿真
+# leg_hero 闭链轮腿机器人
 
-当前 hero 机器人闭链模型：[MJCF/leg_hero.xml](MJCF/leg_hero.xml)。启动命令：
+MuJoCo 模型及传统 LQR 力矩控制，支持左右闭链腿、驱动轮和 yaw/pitch 云台。当前工作分支为 `leg_hero`。
+
+## 启动控制器
+
+```bash
+.venv/bin/mjpython lqr_controller.py
+```
+
+左右腿质量、质心和惯量已以左腿为基准镜像对称。启动时从 MJCF 自动求站立平衡点和 LQR 增益，直接初始化到闭链、重力和接触平衡状态。云台默认保持相对机身零位，由独立的 `GimbalController` 控制 yaw/pitch。
+
+| 按键 | 功能 |
+| --- | --- |
+| 1 / 2 | 前进 / 后退，默认 ±0.8 m/s |
+| 3 / 4 | 负 / 正偏航，默认 ∓1.2 rad/s |
+| 5 / 6 | 升高 / 降低腿高，默认 ±0.05 m/s，范围 0.20–0.28 m |
+| 左 / 右 Shift | 按住时锁定云台世界系指向，底盘以 +8 rad/s 旋转 |
+| 空格 | 暂停 / 继续 |
+
+原有键盘映射及 viewer 沿用 `demo` 分支：按住生效，松开清零对应方向输入，支持组合键。前进和转向按配置的加速度减速，腿高松键后保持目标值。速度和腿高范围使用 hero 的配置。
+
+新增 Shift 按住模式：捕获按下时云台的世界系指向，云台反向补偿底盘旋转。此时平移目标为零，覆盖 `1–4` 的运动指令，`5/6` 仍可调腿高。底盘沿 6 rad/s² 斜坡升至 8 rad/s，参考起转时间约 1.33 秒；松开两个 Shift 后，云台继续保持同一世界系指向；底盘先按原斜坡减速，再以不超过普通转向速度 1.2 rad/s 就近对齐云台朝向。归位期间暂停 `1–4` 的运动输入，完成后恢复；再次按下 Shift 可直接重新进入旋转模式。
+
+```bash
+.venv/bin/mjpython verify_lqr.py
+```
+
+配置见 [configs/lqr.yaml](configs/lqr.yaml)，控制方法、参考 main 分支的适配说明及测试结果见 [LQR.md](LQR.md)。
+
+代码按 `demo` 分支组织：
+
+```text
+demo.py                  路径、显示配置和按键映射
+lqr_controller.py        参数解析与启动入口
+configs/lqr.yaml         control、command、lqr 参数
+utils/
+  __init__.py            导出 DemoLqrController
+  lqr_control.py         控制器、斜坡规划、力矩控制与仿真步
+  gimbal_controller.py   云台 yaw/pitch 参考、世界指向保持与力矩输出
+  math_tools.py          闭链约简、LQR 求解、move_towards
+  mujoco_io.py           MuJoCo 平衡姿态与逆动力学
+  viewer.py              demo 键盘及显示逻辑，增加左右 Shift 状态读取
+verify_lqr.py            无界面仿真验证
+```
+
+入口与 `demo` 原文件一致。viewer 通过 `command` 更新目标，仿真调用链为 `step → control → lqr_control → update_command`；云台控制器使用同一次全系统 LQR 求解中对应云台的增益行，保留底盘与云台的动力学耦合。闭链动力学仍由 hero 的 MJCF 推导。
+
+## 模型与环境
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+查看无控制器的原始模型：
 
 ```bash
 .venv/bin/mjpython -m mujoco.viewer --mjcf MJCF/leg_hero.xml
 ```
 
-闭链拓扑、云台估算惯量、力矩接口及验证结果见 [模型说明](MJCF/README.md)。以下为原项目的配置示例，不是当前 hero 模型参数。
+无控制器时机器人会倒下。重新生成 MJCF 和检查模型：
 
-# config
-```yaml
-# 基本物理常数
-g: 9.8  # 重力加速度 [m/s^2]
-
-# 几何参数
-R_w: 0.05    # 轮子半径 [m]
-R_l: 0.207    # 轮距的一半 [m]
-l_c: -0.1   # 质心偏移 [m]
-
-# 腿部参数
-l_l: 0.2         # 左腿总长 [m]
-l_wl: 0.1       # 左腿轮子到关节距离 [m] (0.00414 * 0.15 + 0.000565)
-l_bl: 0.1       # 左腿关节到身体距离 [m] (l_l / 2)
-l_r: 0.2         # 右腿总长 [m]
-l_wr: 0.1       # 右腿轮子到关节距离 [m]
-l_br: 0.1       # 右腿关节到身体距离 [m]
-
-# 质量参数
-m_w: 0.9   # 单个轮子质量 [kg]
-m_l: 3.1  # 单条腿质量 [kg]
-m_b: 5.0   # 身体质量 [kg]
-
-# 转动惯量
-I_w: 0.00137    # 轮子转动惯量 [kg·m^2]
-I_z: 0.5      # 绕z轴转动惯量 [kg·m^2]
-I_b: 0.356871164   # 机体绕pitch轴转动惯量 [kg·m^2]
-I_ll: 0.031  # 左腿转动惯量 [kg·m^2] (0.001047 * 0.15 + 0.000134)
-I_lr: 0.031  # 右腿转动惯量 [kg·m^2]
-
-# LQR 控制器参数
-lqr:
-  # 状态限幅 - 用于归一化 Q 矩阵
-  # 状态向量: [s, ds, phi, dphi, theta_ll, dtheta_ll, theta_lr, dtheta_lr, theta_b, dtheta_b]
-  state_limits:
-    s_max: 1.0                 # 位移最大值 [m]
-    ds_max: 2.5                 # 线速度最大值 [m/s]
-    phi_max: 3.14               # 偏航角最大值 [rad]
-    dphi_max: 5.0               # 偏航角速度最大值 [rad/s]
-    theta_ll_max: 0.7854        # 左腿角度最大值 [rad] (π/4)
-    dtheta_ll_max: 12.0         # 左腿角速度最大值 [rad/s]
-    theta_lr_max: 0.7854        # 右腿角度最大值 [rad] (π/4)
-    dtheta_lr_max: 12.0         # 右腿角速度最大值 [rad/s]
-    theta_b_max: 0.087         # 俯仰角最大值 [rad] (π/6)
-    dtheta_b_max: 12.0           # 俯仰角速度最大值 [rad/s]
-  
-  # 控制输入限幅 - 用于归一化 R 矩阵
-  # 输入向量: [T_wl, T_wr, T_bl, T_br]
-  control_limits:
-    T_wl_max: 4.5               # 左轮驱动力矩最大值 [N·m]
-    T_wr_max: 4.5               # 右轮驱动力矩最大值 [N·m]
-    T_bl_max: 60.0              # 左腿关节力矩最大值 [N·m]
-    T_br_max: 60.0              # 右腿关节力矩最大值 [N·m]
-
-  Q_weights:
-    s: 1                    # 位移权重
-    ds: 5                   # 线速度权重
-    phi: 10                  # 偏航角权重
-    dphi: 30                 # 偏航角速度权重
-    theta_ll: 1000              # 左腿角度权重
-    dtheta_ll: 100.0              # 左腿角速度权重
-    theta_lr: 1000              # 右腿角度权重
-    dtheta_lr: 100.0              # 右腿角速度权重
-    theta_b: 250.0                # 俯仰角权重
-    dtheta_b: 0.25               # 俯仰角速度权重
-  
-  # R 矩阵权重
-  R_weights:
-    T_wl: 100.0                  # 左轮驱动力矩权重
-    T_wr: 100.0                  # 右轮驱动力矩权重
-    T_bl: 200.0                  # 左腿关节力矩权重
-    T_br: 200.0                  # 右腿关节力矩权重
-
-
-# 多项式拟合参数配置
-fitting:
-  leg_data_l:
-    - [0.118, 0.059, 0.059, 0.029322]
-    - [0.131, 0.0655, 0.0655, 0.0296698995]
-    - [0.150, 0.075, 0.075, 0.030212376]
-    - [0.178, 0.089, 0.089, 0.0308197794]
-    - [0.205, 0.1025, 0.1025, 0.0321843062]
-    - [0.231, 0.1155, 0.1155, 0.0333847566]
-    - [0.263, 0.1315, 0.1315, 0.0350308354]
-    - [0.288, 0.144, 0.144, 0.0365194102]
-    - [0.316, 0.158, 0.158, 0.038382978]
-    - [0.347, 0.1735, 0.1735, 0.040623508]
-    - [0.375, 0.1875, 0.1875, 0.0427765126]
-    - [0.398, 0.199, 0.199, 0.0447460503]
-
-  leg_data_r: null
-  
+```bash
+.venv/bin/mjpython tools/build_mjcf.py
+.venv/bin/mjpython tools/check_mjcf.py
 ```
+
+几何来源、四处闭链、关节轴方向、碰撞设定和 yaw 惯量估算见 [MJCF/README.md](MJCF/README.md)。质量、惯量、杆长、轮径与关节轴均以 MJCF 为准，控制配置不重复保存这些参数。
