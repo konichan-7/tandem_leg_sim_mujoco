@@ -13,7 +13,13 @@ from scipy.spatial.transform import Rotation
 from controllers.lqr_controller import LqrController
 from controllers.whole_body_lqr_controller import WholeBodyLqrController
 from utils.control import move_towards
-from utils.paths import LQR_CONFIG_PATH, MODEL_PATH, ROOT, WHOLE_BODY_LQR_CONFIG_PATH
+from utils.paths import (
+    CONFIG_BASE_PATH,
+    LQR_CONFIG_PATH,
+    MODEL_PATH,
+    ROOT,
+    WHOLE_BODY_LQR_CONFIG_PATH,
+)
 
 Controller = LqrController | WholeBodyLqrController
 
@@ -371,6 +377,7 @@ def main() -> None:
     args.output.mkdir(parents=True, exist_ok=True)
     paths = [
         MODEL_PATH,
+        CONFIG_BASE_PATH,
         LQR_CONFIG_PATH,
         WHOLE_BODY_LQR_CONFIG_PATH,
         ROOT / "compare_lqr.py",

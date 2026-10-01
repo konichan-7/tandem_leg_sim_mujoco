@@ -4,7 +4,6 @@ from typing import Any
 
 import mujoco
 import numpy as np
-import yaml
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Rotation
 
@@ -12,6 +11,7 @@ from controllers.gimbal_controller import GimbalController
 from controllers.jump_controller import BaseJumpController
 from modelling.base import RobotModelling
 from modelling.lqr_design import LqrDesign
+from utils.config import load_config
 from utils.control import move_towards
 from utils.paths import MODEL_PATH
 
@@ -49,7 +49,7 @@ class ChassisController(ABC):
         model: mujoco.MjModel | Path = MODEL_PATH,
         modelling_type: type[RobotModelling] = RobotModelling,
     ) -> None:
-        self.params = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        self.params = load_config(yaml_path)
         self.model = (
             model
             if isinstance(model, mujoco.MjModel)

@@ -6,9 +6,9 @@ import xml.etree.ElementTree as ET
 
 import mujoco
 import numpy as np
-import yaml
 
 from main import create_controller
+from utils.config import load_config
 from modelling.base import planar_equality_jacobian
 from modelling.kinematics import Leg
 from modelling.lqr_design import design_lqr, design_whole_body_lqr
@@ -23,8 +23,8 @@ class ModellingTests(unittest.TestCase):
         cls.model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
         cls.whole = WholeBodyModelling(cls.model)
         cls.vmc = VmcModelling(cls.model)
-        cls.whole_config = yaml.safe_load(WHOLE_BODY_LQR_CONFIG_PATH.read_text())
-        cls.vmc_config = yaml.safe_load(LQR_CONFIG_PATH.read_text())
+        cls.whole_config = load_config(WHOLE_BODY_LQR_CONFIG_PATH)
+        cls.vmc_config = load_config(LQR_CONFIG_PATH)
 
     def test_open_model_partition_and_closed_loop_prediction(self) -> None:
         design = design_whole_body_lqr(self.whole, self.whole_config)

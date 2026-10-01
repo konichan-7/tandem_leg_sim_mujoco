@@ -42,11 +42,11 @@ macOS 交互窗口使用 `mjpython`。Linux 将运行命令的解释器替换为
 | `--model` | `MJCF/leg_hero.xml`，可指定同构机器人 MJCF |
 | `--controller` | `lqr` 或 `whole_body_lqr` |
 | `--terrain` | `flat`、`step` 或自定义地形 MJCF 路径 |
-| `--config` | 默认加载所选控制器对应的 YAML |
+| `--config` | 默认加载所选控制器对应的 YAML，叠加在 `configs/base.yaml` 上 |
 | `--headless` | 不创建窗口，执行零运动指令仿真 |
 | `--duration` | 无窗口运行时长，默认 5 s，必须为有限正数 |
 
-两种控制配置不能混用。自定义模型需满足现有角色命名、闭链拓扑和直接力矩电机约定；初始轮下需有 z=0 的水平支撑面。加载器替换机器人内名为 `floor` 的地面，自定义地形的测高几何体应使用 group 1。详细接口约束见技术报告。
+`configs/base.yaml` 保存两版共用的 `control`、`command`、`gimbal` 与公共 `jump` 参数，两份控制器 YAML 只写与之不同的键，启动时深合并再按 `utils/config.py` 的 schema 校验；未知段、未知键和类型不符都会直接报错。两种控制配置不能混用。自定义模型需满足现有角色命名、闭链拓扑和直接力矩电机约定；初始轮下需有 z=0 的水平支撑面。加载器替换机器人内名为 `floor` 的地面，自定义地形的测高几何体应使用 group 1。详细接口约束见技术报告。
 
 ## 按键
 
@@ -65,7 +65,7 @@ macOS 交互窗口使用 `mjpython`。Linux 将运行命令的解释器替换为
 main.py                 统一仿真入口
 controllers/            chassis.py 底盘基类，两版控制器、云台与跳跃控制
 modelling/              base.py 通用基座，kinematics.py，lqr_design.py，两版建模
-configs/                两种控制器的 YAML 配置
+configs/                base.yaml 公共参数，两份控制器 YAML 只存差异
 MJCF/                   机器人模型、网格与 terrains/ 地形
 utils/                  PID、斜坡、路径和交互窗口
 tests/                  建模与控制器测试

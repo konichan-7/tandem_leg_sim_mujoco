@@ -27,7 +27,7 @@ Windows 使用 `.venv\Scripts\python.exe`，Linux 使用 `.venv/bin/python`。`-
 | `--terrain flat` | 平面地形 |
 | `--terrain step` | 平面及 20 cm 箱形台阶，前沿 x=3.5 m |
 | `--terrain PATH` | 自定义静态地形 MJCF |
-| `--config` | 覆盖所选控制器的 YAML；两种配置结构不同，不能混用 |
+| `--config` | 覆盖所选控制器的差异 YAML；先与 `configs/base.yaml` 深合并，两种配置结构不能混用 |
 
 `main.py` 用 `MjSpec.from_file` 分别加载机器人与地形，删除机器人中名为 `floor` 的原地面，将地形以 `terrain/` 前缀挂接到 world frame 后编译。这样地形网格、纹理和 include 可以相对于各自 XML 解析。机器人内其他几何体保留，因此应传入机器人模型，而不是另一个已包含障碍物的完整场景。参考 [MuJoCo Python 模型编辑接口](https://mujoco.readthedocs.io/en/stable/python.html#model-editing)。
 
@@ -49,7 +49,11 @@ Windows 使用 `.venv\Scripts\python.exe`，Linux 使用 `.venv/bin/python`。`-
 | `utils/control.py` | PID 与斜坡函数 |
 | `utils/viewer.py` | 跨平台窗口及键盘输入 |
 | `compare_lqr.py` | 独立的两架构对照实验，输出 JSON/CSV |
-| `tests/` | 三个测试文件：建模、控制独立性、跳跃阶段机与入口组合 |
+| `utils/config.py` | 配置深合并与 schema 校验 |
+| `configs/base.yaml` | 两版共用的 `control`、`command`、`gimbal` 与公共 `jump` 参数 |
+| `tests/` | 四个测试文件：建模、配置、控制独立性、跳跃阶段机与入口组合 |
+
+配置分两层：`configs/base.yaml` 存共用值，`configs/lqr.yaml` 与 `configs/whole_body_lqr.yaml` 只列与之不同的键。`load_config` 先按段深合并再校验，未知段、未知键、类型不符（例如把 `0.05` 写成 `"0.05"`）都会在构造控制器时直接报错，不再静默取默认值。`tests/test_config.py` 另外断言差异文件不得重述 base 中已有的相同值，避免共用参数重新变成两份。
 
 按键：1/2 前后移动，3/4 偏航，5/6 调高，Shift 保持云台世界指向并旋转底盘，P 暂停。空格按住下蹲、松开起跳。松开 Shift 后先减速，再对齐云台世界方向。输入斜坡、目标参考、模型配平与 LQR 增益是不同层次，不应把限速器当作动力学模型。
 
