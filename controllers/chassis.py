@@ -17,6 +17,7 @@ from utils.paths import MODEL_PATH
 
 
 class ChassisController(ABC):
+    required_sections: tuple[str, ...] = ()
     model: mujoco.MjModel
     data: mujoco.MjData
     params: dict
@@ -50,6 +51,11 @@ class ChassisController(ABC):
         modelling_type: type[RobotModelling] = RobotModelling,
     ) -> None:
         self.params = load_config(yaml_path)
+        missing = [name for name in self.required_sections if name not in self.params]
+        if missing:
+            raise ValueError(
+                f"{type(self).__name__} needs config sections {missing}: {yaml_path}"
+            )
         self.model = (
             model
             if isinstance(model, mujoco.MjModel)

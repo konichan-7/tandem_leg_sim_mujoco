@@ -24,20 +24,6 @@ class VMC:
         phi3 = math.atan2(y_c - y_d, x_c - x_d)
         return phi2, phi3, math.hypot(x_c, y_c), math.atan2(y_c, x_c)
 
-    def inverse_kinematics(self, l0: float, phi0: float) -> tuple[float, float]:
-        x_c, y_c = l0 * math.cos(phi0), l0 * math.sin(phi0)
-        dist_ac = math.hypot(x_c + self.l5 / 2, y_c)
-        alpha = math.acos(
-            (self.l1**2 + dist_ac**2 - self.l2**2) / (2 * self.l1 * dist_ac)
-        )
-        phi1 = math.atan2(y_c, x_c + self.l5 / 2) + alpha
-        dist_ec = math.hypot(x_c - self.l5 / 2, y_c)
-        beta = math.acos(
-            (self.l4**2 + dist_ec**2 - self.l3**2) / (2 * self.l4 * dist_ec)
-        )
-        phi4 = math.atan2(y_c, x_c - self.l5 / 2) - beta
-        return phi1, phi4
-
     def mat_jrm(
         self, phi0: float, phi1: float, phi2: float, phi3: float, phi4: float, l0: float
     ) -> np.ndarray:

@@ -28,10 +28,6 @@ class LqrDesign(Generic[Model]):
     def torque(self) -> np.ndarray:
         return self.plant.point.torque
 
-    @property
-    def equilibrium_residual(self) -> float:
-        return self.plant.point.residual
-
 
 def motor_limits(
     modelling: VmcModelling | WholeBodyModelling, config: dict

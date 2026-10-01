@@ -1,5 +1,6 @@
 import unittest
 
+from main import create_controller
 from utils.config import load_config, merge, read_config, validate
 from utils.paths import CONFIG_BASE_PATH, LQR_CONFIG_PATH, WHOLE_BODY_LQR_CONFIG_PATH
 
@@ -59,6 +60,13 @@ class ConfigTests(unittest.TestCase):
             raise ValueError("ready_time belongs to the 10-state jump branch")
         if "air_gimbal_kp" not in whole["jump"] or "air_gimbal_kp" in ten["jump"]:
             raise ValueError("air_gimbal_kp belongs to the 24-state jump branch")
+
+    def test_mismatched_branch_config_is_rejected(self) -> None:
+        try:
+            create_controller(controller="lqr", config=WHOLE_BODY_LQR_CONFIG_PATH)
+        except ValueError:
+            return
+        raise ValueError("The 24-state config was accepted by the 10-state controller")
 
     def test_unknown_keys_and_types_are_rejected(self) -> None:
         rejected = (

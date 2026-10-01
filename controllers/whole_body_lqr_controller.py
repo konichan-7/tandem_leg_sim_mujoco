@@ -12,6 +12,8 @@ from utils.paths import WHOLE_BODY_LQR_CONFIG_PATH, MODEL_PATH
 
 
 class WholeBodyLqrController(ChassisController):
+    required_sections = ("modelling",)
+
     def build_design(self) -> LqrDesign[WholeBodyModel]:
         return design_whole_body_lqr(self.modelling, self.params)
 

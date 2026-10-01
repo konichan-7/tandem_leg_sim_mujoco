@@ -15,6 +15,8 @@ from utils.paths import LQR_CONFIG_PATH, MODEL_PATH
 
 
 class LqrController(ChassisController):
+    required_sections = ("leg",)
+
     def build_design(self) -> LqrDesign[VmcModel]:
         return design_lqr(self.modelling, self.params)
 
