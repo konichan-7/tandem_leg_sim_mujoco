@@ -63,8 +63,8 @@ macOS 交互窗口使用 `mjpython`。Linux 将运行命令的解释器替换为
 
 ```text
 main.py                 统一仿真入口
-controllers/            底盘、云台、跳跃控制与 LQR 设计
-modelling/              whole_body_modelling.py、vmc_modelling.py
+controllers/            chassis.py 底盘基类，两版控制器、云台与跳跃控制
+modelling/              base.py 通用基座，kinematics.py，lqr_design.py，两版建模
 configs/                两种控制器的 YAML 配置
 MJCF/                   机器人模型、网格与 terrains/ 地形
 utils/                  PID、斜坡、路径和交互窗口

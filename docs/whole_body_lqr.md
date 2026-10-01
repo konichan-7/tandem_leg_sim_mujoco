@@ -36,10 +36,13 @@ Windows 使用 `.venv\Scripts\python.exe`，Linux 使用 `.venv/bin/python`。`-
 | 文件 | 职责 |
 |---|---|
 | `main.py` | 参数解析、机器人/地形组合、控制器选择、仿真入口 |
-| `modelling/whole_body_modelling.py` | 模型接口、角色映射、配平、闭链切空间、完整模型线性化 |
-| `modelling/vmc_modelling.py` | 五杆运动学、VMC、等效参数与 10 维连续矩阵 |
-| `controllers/lqr_design.py` | Q/R、云台闭环代入、CARE/DARE 与增益 |
-| `controllers/lqr_controller.py` | 公共命令流程和 10 维状态/输出适配 |
+| `modelling/base.py` | 模型接口、角色映射、配平、闭链切空间与 equality 雅可比 |
+| `modelling/whole_body_modelling.py` | 完整模型线性化与 24 维约简 |
+| `modelling/kinematics.py` | 五杆运动学与 VMC 力/力矩映射 |
+| `modelling/vmc_modelling.py` | 等效参数与 10 维连续矩阵 |
+| `modelling/lqr_design.py` | Q/R、云台闭环代入、CARE/DARE 与增益 |
+| `controllers/chassis.py` | 公共命令流程、参考生成与底盘生命周期 |
+| `controllers/lqr_controller.py` | 10 维状态与虚拟力矩输出 |
 | `controllers/whole_body_lqr_controller.py` | 24 维误差与六路底盘输出 |
 | `controllers/gimbal_controller.py` | 独立云台参考与 PD |
 | `controllers/jump_controller.py` | 两版跳跃策略与公共空中分配 |

@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 import numpy as np
 from scipy.linalg import solve_continuous_are, solve_discrete_are
 
-from modelling.whole_body_modelling import StateSpaceModel
+from modelling.base import StateSpaceModel
 from modelling.vmc_modelling import VmcModel, VmcModelling
 from modelling.whole_body_modelling import WholeBodyModel, WholeBodyModelling
 

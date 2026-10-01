@@ -8,13 +8,13 @@ import mujoco
 import numpy as np
 import yaml
 
-from controllers.lqr_design import design_lqr, design_whole_body_lqr
 from main import create_controller
-from modelling.whole_body_modelling import planar_equality_jacobian
+from modelling.base import planar_equality_jacobian
+from modelling.kinematics import Leg
+from modelling.lqr_design import design_lqr, design_whole_body_lqr
 from modelling.vmc_modelling import VmcModelling
 from modelling.whole_body_modelling import WholeBodyModelling
 from utils.paths import MODEL_PATH, LQR_CONFIG_PATH, WHOLE_BODY_LQR_CONFIG_PATH
-from modelling.vmc_modelling import Leg
 
 
 class ModellingTests(unittest.TestCase):

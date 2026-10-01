@@ -3,10 +3,10 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.optimize import lsq_linear
 
-from controllers.lqr_design import LqrDesign
+from modelling.base import closed_chain_tangent
+from modelling.kinematics import Leg
+from modelling.lqr_design import LqrDesign
 from utils.control import move_towards
-from modelling.vmc_modelling import Leg
-from modelling.whole_body_modelling import closed_chain_tangent
 
 
 class BaseJumpController:

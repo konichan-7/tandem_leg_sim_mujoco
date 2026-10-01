@@ -2,74 +2,30 @@ from pathlib import Path
 
 import mujoco
 import numpy as np
-import yaml
 from scipy.interpolate import CubicSpline
 
-from controllers.gimbal_controller import GimbalController
-from controllers.lqr_controller import ChassisController
+from controllers.chassis import ChassisController
 from controllers.jump_controller import WholeBodyJumpController
-from controllers.lqr_design import design_whole_body_lqr
-from modelling.whole_body_modelling import WholeBodyModelling
+from modelling.lqr_design import LqrDesign, design_whole_body_lqr
+from modelling.whole_body_modelling import WholeBodyModel, WholeBodyModelling
 from utils.paths import WHOLE_BODY_LQR_CONFIG_PATH, MODEL_PATH
 
 
 class WholeBodyLqrController(ChassisController):
+    def build_design(self) -> LqrDesign[WholeBodyModel]:
+        return design_whole_body_lqr(self.modelling, self.params)
+
     def __init__(
         self,
         yaml_path: Path = WHOLE_BODY_LQR_CONFIG_PATH,
         model: mujoco.MjModel | Path = MODEL_PATH,
         modelling_type: type[WholeBodyModelling] = WholeBodyModelling,
     ) -> None:
-        self.params = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-        self.model = (
-            mujoco.MjModel.from_xml_path(str(model))
-            if isinstance(model, Path)
-            else model
-        )
-        self.data = mujoco.MjData(self.model)
-        self.modelling = modelling_type(
-            self.model, self.params["modelling"]["finite_difference_step"]
-        )
-        self.design = design_whole_body_lqr(self.modelling, self.params)
-        self.command_config = self.params["command"]
-        heights = np.linspace(
-            min(
-                self.command_config["leg_length_min"],
-                self.params["jump"]["leg_length_min"],
-            ),
-            max(
-                self.command_config["leg_length_max"],
-                self.params["jump"]["leg_length_max"],
-            ),
-            18,
-        )
-        references = [self.modelling.operating_point(height) for height in heights]
-        self.leg_pose = CubicSpline(
-            heights, np.stack([reference.qpos for reference in references])
-        )
-        self.leg_torque = CubicSpline(
-            heights, np.stack([reference.torque for reference in references])
-        )
+        super().__init__(yaml_path, model, modelling_type)
         self.active_dofs = self.model.jnt_dofadr[self.model.actuator_trnid[:, 0]]
-        self.wheel_joints = [
-            self.model.joint(f"{side}_wheel_joint") for side in ("left", "right")
-        ]
-        wheel_bodies = np.array(
-            [self.model.body(f"{side}_wheel_link").id for side in ("left", "right")]
-        )
-        self.radii = np.array(
-            [
-                self.model.geom(f"{side}_wheel_link_collision").size[0]
-                for side in ("left", "right")
-            ]
-        )
         self.position_error = np.zeros(self.model.nv)
         self.reference_qpos = self.design.qpos.copy()
         self.reference_qvel = np.zeros(self.model.nv)
-        self.target_xy = np.zeros(2)
-        self.gimbal = GimbalController(
-            self.model, self.data, self.design.qpos, self.design.limits
-        )
         self.jump = WholeBodyJumpController(
             self.model, self.data, self.design, self.leg_pose, self.params
         )
@@ -99,7 +55,7 @@ class WholeBodyLqrController(ChassisController):
             ]
         )
         self.reset()
-        self.wheel_offsets = self.data.xpos[wheel_bodies, 1] - self.data.qpos[1]
+        self.wheel_offsets = self.data.xpos[self.wheel_bodies, 1] - self.data.qpos[1]
 
     def lqr_control(self, dt: float) -> None:
         previous_phase = self.jump.phase
