@@ -1,6 +1,6 @@
 # 跳跃控制：阶段、支撑判定与空中分配
 
-两种底盘控制器分别采用 `JumpController`（10 维 + VMC）和 `WholeBodyJumpController`（24 维底盘），实现集中在 `controllers/jump_controller.py`。公共基类复用命令、轨迹和空中力矩分配；支撑力计算、阶段条件与蹬伸策略保留各自实现。地面建模及完整控制架构见 [whole_body_lqr.md](whole_body_lqr.md)。
+两种底盘控制器分别采用 `JumpController`（10 维 + VMC）和 `WholeBodyJumpController`（24 维底盘），实现集中在 `controllers/jump_controller.py`。`BaseJumpController` 持有唯一的 `update` 状态机（阶段推进、空中 `motion` 序列、目标与速度选择）和空中力矩分配；两版只覆写差异点：起跳就绪判据、落地触发、落地退出、收腿判定与支撑力计算。地面建模及完整控制架构见 [whole_body_lqr.md](whole_body_lqr.md)。
 
 ## 1. 入口与操作
 
@@ -242,6 +242,8 @@ $$
 ```
 
 当前测试覆盖基础模型、控制器及场景加载；无窗口入口只验证站立运行。原 `verify_jump.py`、`verify_lqr.py`、`verify_step.py` 按目录精简要求删除，不能再用这些命令复验。
+
+`tests/test_jump.py` 用同一段按键序列驱动两版控制器，检查阶段序列落在合法转移图上、确实离开过地面、且两版序列一致。它验证的是状态机骨架，不是腿长轨迹、50 ms 保持、空中轮零力矩或力矩限幅。
 
 删除前，两版各自七项跳跃场景曾通过，覆盖普通跳跃、重复跳跃、旋转归位后跳跃和 pitch 扰动；当时检查了动作顺序、实际腿长、50 ms 保持、空中轮零力矩、力矩限幅和落地恢复。该历史结果不等于现有单元测试覆盖了完整跳跃状态机，也不构成实机保证。
 

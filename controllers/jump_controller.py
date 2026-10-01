@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import mujoco
 import numpy as np
 from scipy.interpolate import CubicSpline
@@ -9,7 +11,7 @@ from modelling.lqr_design import LqrDesign
 from utils.control import move_towards
 
 
-class BaseJumpController:
+class BaseJumpController(ABC):
     def __init__(
         self,
         model: mujoco.MjModel,
@@ -140,6 +142,136 @@ class BaseJumpController:
         previous_height = self.height
         self.height = move_towards(self.height, target, speed * dt)
         self.height_velocity = (self.height - previous_height) / dt
+
+    def update(self, dt: float, ready_to_launch: bool, forward_speed: float) -> None:
+        if self.phase == "idle":
+            return
+        mujoco.mj_forward(self.model, self.data)
+        self.update_support()
+        self.air_time = 0.0 if self.contacting else self.air_time + dt
+        self.phase_time += dt
+        leg_heights = (
+            self.data.xpos[self.hip_bodies] - self.data.xpos[self.wheel_bodies]
+        ) @ self.data.xmat[self.base].reshape(3, 3)[:, 2]
+        leg_height = leg_heights.mean()
+        self.actual_height = leg_height
+        self.leg_jacobian[:] = self.height_jacobian(self.data)
+        forward = self.data.xmat[self.base].reshape(3, 3)[:, 0]
+        velocity_error = self.data.qvel[:3] - forward_speed * np.array(
+            [forward[0], forward[1], 0.0]
+        )
+        self.extended |= (
+            np.min(leg_heights) >= self.maximum - self.config["ready_height_error"]
+        )
+        self.advance_phase(dt, ready_to_launch, leg_heights, leg_height, velocity_error)
+        if self.phase == "crouch":
+            target, speed = self.minimum, self.config["crouch_velocity"]
+        elif self.phase == "thrust":
+            target, speed = self.maximum, self.config["extension_velocity"]
+        elif self.phase in ("flight", "retract"):
+            self.update_motion(dt, leg_heights)
+            target = {
+                "extend": self.maximum,
+                "retract": self.minimum,
+                "hold": self.minimum,
+                "deploy": self.normal,
+            }[self.motion]
+            speed = self.config["retraction_velocity"]
+        else:
+            target, speed = self.normal, self.config["retraction_velocity"]
+        self.update_trajectory(dt, target, speed)
+
+    def advance_phase(
+        self,
+        dt: float,
+        ready_to_launch: bool,
+        leg_heights: np.ndarray,
+        leg_height: float,
+        velocity_error: np.ndarray,
+    ) -> None:
+        self.before_transition(dt, ready_to_launch, leg_heights, velocity_error)
+        if self.launch_ready(ready_to_launch, leg_heights, velocity_error):
+            self.phase = "thrust"
+            self.motion = "extend"
+            self.phase_time = 0.0
+        elif (
+            self.phase in ("thrust", "retract")
+            and self.air_time >= self.config["liftoff_time"]
+        ):
+            self.phase = "flight"
+            self.phase_time = 0.0
+        elif self.phase == "thrust" and leg_height >= self.maximum:
+            self.phase = "retract"
+            self.phase_time = 0.0
+        elif self.phase == "flight" and self.landing_trigger():
+            self.phase = "landing"
+            self.phase_time = 0.0
+            self.on_landing()
+        elif self.phase == "landing":
+            self.leave_landing()
+
+    def update_motion(self, dt: float, leg_heights: np.ndarray) -> None:
+        if self.motion == "extend" and self.extended:
+            self.motion = "retract"
+        elif (
+            self.motion == "retract"
+            and self.trajectory_time >= self.trajectory_duration
+            and np.max(np.abs(leg_heights - self.minimum))
+            <= self.config["tuck_height_error"]
+            and self.tuck_settled()
+        ):
+            self.motion = "hold"
+            self.hold_time = 0.0
+        elif self.motion == "hold":
+            self.hold_time = (
+                self.hold_time + dt
+                if not self.contacting
+                and np.max(np.abs(leg_heights - self.minimum))
+                <= self.config["tuck_height_error"]
+                else 0.0
+            )
+            if self.hold_time >= self.config["air_hold_time"]:
+                self.motion = "deploy"
+
+    def before_transition(
+        self,
+        dt: float,
+        ready_to_launch: bool,
+        leg_heights: np.ndarray,
+        velocity_error: np.ndarray,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def launch_ready(
+        self,
+        ready_to_launch: bool,
+        leg_heights: np.ndarray,
+        velocity_error: np.ndarray,
+    ) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def landing_trigger(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def leave_landing(self) -> None:
+        raise NotImplementedError
+
+    def on_landing(self) -> None:
+        pass
+
+    def tuck_settled(self) -> bool:
+        return True
+
+    @abstractmethod
+    def update_support(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def control_ground(self, balance_torque: np.ndarray) -> None:
+        raise NotImplementedError
 
     def control(self, attitude_error: np.ndarray, balance_torque: np.ndarray) -> None:
         self.control_ground(balance_torque)
@@ -291,27 +423,13 @@ class WholeBodyJumpController(BaseJumpController):
             heights.append(origin[2] - distance)
         return max(heights)
 
-    def update(self, dt: float, ready_to_launch: bool, forward_speed: float) -> None:
-        if self.phase == "idle":
-            return
-        mujoco.mj_forward(self.model, self.data)
-        self.update_support()
-        self.air_time = 0.0 if self.contacting else self.air_time + dt
-        self.phase_time += dt
-        leg_heights = (
-            self.data.xpos[self.hip_bodies] - self.data.xpos[self.wheel_bodies]
-        ) @ self.data.xmat[self.base].reshape(3, 3)[:, 2]
-        leg_height = leg_heights.mean()
-        self.actual_height = leg_height
-        self.leg_jacobian[:] = self.height_jacobian(self.data)
-        forward = self.data.xmat[self.base].reshape(3, 3)[:, 0]
-        velocity_error = self.data.qvel[:3] - forward_speed * np.array(
-            [forward[0], forward[1], 0.0]
-        )
-        self.extended |= (
-            np.min(leg_heights) >= self.maximum - self.config["ready_height_error"]
-        )
-        if (
+    def launch_ready(
+        self,
+        ready_to_launch: bool,
+        leg_heights: np.ndarray,
+        velocity_error: np.ndarray,
+    ) -> bool:
+        return (
             self.phase == "crouch"
             and self.released
             and ready_to_launch
@@ -320,64 +438,21 @@ class WholeBodyJumpController(BaseJumpController):
             < self.config["ready_height_error"]
             and np.linalg.norm(velocity_error) < self.config["ready_speed"]
             and np.linalg.norm(self.data.qvel[3:6]) < self.config["ready_angular_speed"]
-        ):
-            self.phase = "thrust"
-            self.motion = "extend"
-            self.phase_time = 0.0
-        elif (
-            self.phase in ("thrust", "retract")
-            and self.air_time >= self.config["liftoff_time"]
-        ):
+        )
+
+    def landing_trigger(self) -> bool:
+        return self.contacting and self.data.qvel[2] < 0
+
+    def on_landing(self) -> None:
+        self.ground_height = self.terrain_height()
+
+    def leave_landing(self) -> None:
+        if not self.contacting:
             self.phase = "flight"
             self.phase_time = 0.0
-        elif self.phase == "thrust" and leg_height >= self.maximum:
-            self.phase = "retract"
+        elif self.phase_time >= self.config["landing_time"]:
+            self.phase = "idle"
             self.phase_time = 0.0
-        elif self.phase == "flight" and self.contacting and self.data.qvel[2] < 0:
-            self.phase = "landing"
-            self.phase_time = 0.0
-            self.ground_height = self.terrain_height()
-        elif self.phase == "landing":
-            if not self.contacting:
-                self.phase = "flight"
-                self.phase_time = 0.0
-            elif self.phase_time >= self.config["landing_time"]:
-                self.phase = "idle"
-        if self.phase == "crouch":
-            target, speed = self.minimum, self.config["crouch_velocity"]
-        elif self.phase == "thrust":
-            target, speed = self.maximum, self.config["extension_velocity"]
-        elif self.phase in ("flight", "retract"):
-            if self.motion == "extend" and self.extended:
-                self.motion = "retract"
-            elif (
-                self.motion == "retract"
-                and self.trajectory_time >= self.trajectory_duration
-                and np.max(np.abs(leg_heights - self.minimum))
-                <= self.config["tuck_height_error"]
-            ):
-                self.motion = "hold"
-                self.hold_time = 0.0
-            elif self.motion == "hold":
-                self.hold_time = (
-                    self.hold_time + dt
-                    if not self.contacting
-                    and np.max(np.abs(leg_heights - self.minimum))
-                    <= self.config["tuck_height_error"]
-                    else 0.0
-                )
-                if self.hold_time >= self.config["air_hold_time"]:
-                    self.motion = "deploy"
-            target = {
-                "extend": self.maximum,
-                "retract": self.minimum,
-                "hold": self.minimum,
-                "deploy": self.normal,
-            }[self.motion]
-            speed = self.config["retraction_velocity"]
-        else:
-            target, speed = self.normal, self.config["retraction_velocity"]
-        self.update_trajectory(dt, target, speed)
 
     def control_ground(self, balance_torque: np.ndarray) -> None:
         if self.phase in ("thrust", "landing") and self.contacting:
@@ -495,26 +570,13 @@ class JumpController(BaseJumpController):
                 - self.mass @ curvature
             )
 
-    def update(self, dt: float, ready_to_launch: bool, forward_speed: float) -> None:
-        if self.phase == "idle":
-            return
-        mujoco.mj_forward(self.model, self.data)
-        self.update_support()
-        self.air_time = 0.0 if self.contacting else self.air_time + dt
-        self.phase_time += dt
-        leg_heights = (
-            self.data.xpos[self.hip_bodies] - self.data.xpos[self.wheel_bodies]
-        ) @ self.data.xmat[self.base].reshape(3, 3)[:, 2]
-        leg_height = leg_heights.mean()
-        self.actual_height = leg_height
-        self.leg_jacobian[:] = self.height_jacobian(self.data)
-        forward = self.data.xmat[self.base].reshape(3, 3)[:, 0]
-        velocity_error = self.data.qvel[:3] - forward_speed * np.array(
-            [forward[0], forward[1], 0.0]
-        )
-        self.extended |= (
-            np.min(leg_heights) >= self.maximum - self.config["ready_height_error"]
-        )
+    def before_transition(
+        self,
+        dt: float,
+        ready_to_launch: bool,
+        leg_heights: np.ndarray,
+        velocity_error: np.ndarray,
+    ) -> None:
         ready = (
             self.phase == "crouch"
             and ready_to_launch
@@ -525,73 +587,34 @@ class JumpController(BaseJumpController):
             and np.linalg.norm(self.data.qvel[3:6]) < self.config["ready_angular_speed"]
         )
         self.ready_time = self.ready_time + dt if ready else 0.0
-        if (
+
+    def launch_ready(
+        self,
+        ready_to_launch: bool,
+        leg_heights: np.ndarray,
+        velocity_error: np.ndarray,
+    ) -> bool:
+        return (
             self.phase == "crouch"
             and self.released
             and self.ready_time >= self.config["ready_time"]
-        ):
-            self.phase = "thrust"
-            self.motion = "extend"
-            self.phase_time = 0.0
-        elif (
-            self.phase in ("thrust", "retract")
-            and self.air_time >= self.config["liftoff_time"]
-        ):
+        )
+
+    def landing_trigger(self) -> bool:
+        return self.contacting and (self.data.qvel[2] < 0 or self.motion == "deploy")
+
+    def leave_landing(self) -> None:
+        if self.air_time >= self.config["liftoff_time"]:
             self.phase = "flight"
             self.phase_time = 0.0
-        elif self.phase == "thrust" and leg_height >= self.maximum:
-            self.phase = "retract"
-            self.phase_time = 0.0
-        elif (
-            self.phase == "flight"
-            and self.contacting
-            and (self.data.qvel[2] < 0 or self.motion == "deploy")
-        ):
-            self.phase = "landing"
-            self.phase_time = 0.0
-        elif self.phase == "landing":
-            if self.air_time >= self.config["liftoff_time"]:
-                self.phase = "flight"
-                self.phase_time = 0.0
-            elif self.contacting and self.phase_time >= self.config["landing_time"]:
-                self.phase = "idle"
-        if self.phase == "crouch":
-            target, speed = self.minimum, self.config["crouch_velocity"]
-        elif self.phase == "thrust":
-            target, speed = self.maximum, self.config["extension_velocity"]
-        elif self.phase in ("flight", "retract"):
-            if self.motion == "extend" and self.extended:
-                self.motion = "retract"
-            elif (
-                self.motion == "retract"
-                and self.trajectory_time >= self.trajectory_duration
-                and np.max(np.abs(leg_heights - self.minimum))
-                <= self.config["tuck_height_error"]
-                and np.max(np.abs(self.leg_jacobian @ self.data.qvel))
-                < self.config["ready_speed"]
-            ):
-                self.motion = "hold"
-                self.hold_time = 0.0
-            elif self.motion == "hold":
-                self.hold_time = (
-                    self.hold_time + dt
-                    if not self.contacting
-                    and np.max(np.abs(leg_heights - self.minimum))
-                    <= self.config["tuck_height_error"]
-                    else 0.0
-                )
-                if self.hold_time >= self.config["air_hold_time"]:
-                    self.motion = "deploy"
-            target = {
-                "extend": self.maximum,
-                "retract": self.minimum,
-                "hold": self.minimum,
-                "deploy": self.normal,
-            }[self.motion]
-            speed = self.config["retraction_velocity"]
-        else:
-            target, speed = self.normal, self.config["retraction_velocity"]
-        self.update_trajectory(dt, target, speed)
+        elif self.contacting and self.phase_time >= self.config["landing_time"]:
+            self.phase = "idle"
+
+    def tuck_settled(self) -> bool:
+        return (
+            np.max(np.abs(self.leg_jacobian @ self.data.qvel))
+            < self.config["ready_speed"]
+        )
 
     def control_ground(self, balance_torque: np.ndarray) -> None:
         if self.phase in ("thrust", "landing") and self.contacting:

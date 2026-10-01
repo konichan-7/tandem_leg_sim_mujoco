@@ -49,7 +49,7 @@ Windows 使用 `.venv\Scripts\python.exe`，Linux 使用 `.venv/bin/python`。`-
 | `utils/control.py` | PID 与斜坡函数 |
 | `utils/viewer.py` | 跨平台窗口及键盘输入 |
 | `compare_lqr.py` | 独立的两架构对照实验，输出 JSON/CSV |
-| `tests/` | 两个测试文件：建模、控制独立性和入口组合 |
+| `tests/` | 三个测试文件：建模、控制独立性、跳跃阶段机与入口组合 |
 
 按键：1/2 前后移动，3/4 偏航，5/6 调高，Shift 保持云台世界指向并旋转底盘，P 暂停。空格按住下蹲、松开起跳。松开 Shift 后先减速，再对齐云台世界方向。输入斜坡、目标参考、模型配平与 LQR 增益是不同层次，不应把限速器当作动力学模型。
 
