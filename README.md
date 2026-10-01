@@ -69,7 +69,7 @@ configs/                base.yaml 公共参数，两份控制器 YAML 只存差�
 MJCF/                   机器人模型、网格与 terrains/ 地形
 utils/                  PID、斜坡、路径和交互窗口
 tests/                  建模与控制器测试
-compare_lqr.py          两种架构的对照实验
+experiment/             两版架构的对照实验（compare_lqr.py）
 docs/
   whole_body_lqr.md     动力学、状态空间、两种建模比较与控制框图
   jump.md               跳跃阶段、支撑判定和空中力矩分配
@@ -84,7 +84,7 @@ docs/
 
 ```bash
 .venv/bin/mjpython -m unittest discover -s tests -v
-.venv/bin/mjpython compare_lqr.py --output reports/lqr_comparison
+.venv/bin/mjpython -m experiment.compare_lqr --output reports/lqr_comparison
 ```
 
 测试覆盖闭链与 VMC、线性预测、同构模型替换、配平稳定性、扰动恢复、云台独立性、跳跃阶段机及入口组合。对照实验运行 16 组场景、32 次试验，输出 JSON/CSV。

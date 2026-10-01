@@ -48,7 +48,7 @@ Windows 使用 `.venv\Scripts\python.exe`，Linux 使用 `.venv/bin/python`。`-
 | `controllers/jump_controller.py` | 两版跳跃策略与公共空中分配 |
 | `utils/control.py` | PID 与斜坡函数 |
 | `utils/viewer.py` | 跨平台窗口及键盘输入 |
-| `compare_lqr.py` | 独立的两架构对照实验，输出 JSON/CSV |
+| `experiment/compare_lqr.py` | 独立的两架构对照实验，输出 JSON/CSV |
 | `utils/config.py` | 配置深合并与 schema 校验 |
 | `configs/base.yaml` | 两版共用的 `control`、`command`、`gimbal` 与公共 `jump` 参数 |
 | `tests/` | 四个测试文件：建模、配置、控制独立性、跳跃阶段机与入口组合 |
@@ -617,13 +617,13 @@ controller = WholeBodyLqrController(model=Path("MJCF/leg_hero.xml"))
 .venv/bin/mjpython -m unittest discover -s tests -v
 .venv/bin/mjpython main.py --controller lqr --terrain flat --headless --duration 5
 .venv/bin/mjpython main.py --controller whole_body_lqr --terrain step --headless --duration 5
-.venv/bin/mjpython compare_lqr.py --output reports/lqr_comparison
+.venv/bin/mjpython -m experiment.compare_lqr --output reports/lqr_comparison
 .venv/bin/python -m black --check .
 ```
 
 必要测试检查：切空间闭链相容性、PD 闭合模型的一步预测、修改云台质量并重排 actuator 的同构模型、VMC 虚功、配平接触力与稳定性、俯仰扰动恢复、云台输出不受底盘 K 修改影响，以及两种控制器与地形的组合加载。入口测试只证明初始站立成功，不证明通过台阶。
 
-`compare_lqr.py` 对两版采用同一初始姿态/速度和命令序列，包含站立、扰动、直行/倒车、偏航、升降、云台偏置和 Shift 旋转，共 16 组场景、32 次试验。控制函数耗时排除观测、CSV 写入和 `mj_step`，初始化包含配平及高度样条。世界位置误差与轮式里程误差分别记录，支撑力从实际接触测量。状态 `completed` 只表示完成且未触发数值/姿态/闭链等阈值，不表示每项跟踪性能均达到需求。
+`experiment/compare_lqr.py` 对两版采用同一初始姿态/速度和命令序列，包含站立、扰动、直行/倒车、偏航、升降、云台偏置和 Shift 旋转，共 16 组场景、32 次试验。控制函数耗时排除观测、CSV 写入和 `mj_step`，初始化包含配平及高度样条。世界位置误差与轮式里程误差分别记录，支撑力从实际接触测量。状态 `completed` 只表示完成且未触发数值/姿态/闭链等阈值，不表示每项跟踪性能均达到需求。
 
 2026-10-01 完成入口整理后，七项测试通过、两个 CLI 无窗口运行成功；32 次对照全部完成，非计时指标与整理前完全一致。对照脚本直接读取默认机器人模型；统一入口组合地形另由测试覆盖。完整指标和实验使用的模型/控制代码哈希见 [lqr_comparison.json](data/lqr_comparison.json)。本次在 macOS ARM64、Python 3.12.13、MuJoCo 3.14.0 验证，结果如下：
 

@@ -4,7 +4,7 @@ import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from compare_lqr import Observer
+from experiment.compare_lqr import Observer
 from controllers.whole_body_lqr_controller import WholeBodyLqrController
 from main import create_controller
 

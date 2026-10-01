@@ -34,4 +34,4 @@ jobs:
       - name: Check modelling and controllers
         run: python -m unittest discover -s tests -v
       - name: Compare chassis controllers
-        run: python compare_lqr.py
+        run: python -m experiment.compare_lqr

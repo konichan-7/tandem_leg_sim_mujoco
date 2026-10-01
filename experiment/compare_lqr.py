@@ -380,12 +380,12 @@ def main() -> None:
         CONFIG_BASE_PATH,
         LQR_CONFIG_PATH,
         WHOLE_BODY_LQR_CONFIG_PATH,
-        ROOT / "compare_lqr.py",
     ]
     paths += sorted((ROOT / "controllers").glob("*.py")) + sorted(
         (ROOT / "utils").glob("*.py")
     )
     paths += sorted((ROOT / "modelling").glob("*.py"))
+    paths += sorted((ROOT / "experiment").glob("*.py"))
     paths += sorted((ROOT / "MJCF").glob("*.STL")) + sorted(
         (ROOT / "MJCF").glob("*.obj")
     )
