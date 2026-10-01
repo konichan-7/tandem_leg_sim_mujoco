@@ -1,69 +1,92 @@
 # leg_hero 闭链轮腿机器人
 
-MuJoCo 模型及传统 LQR 力矩控制，支持左右闭链腿、驱动轮和 yaw/pitch 云台。当前工作分支为 `leg_hero`。
+基于 MuJoCo 的传统力矩控制仿真，包含左右闭链腿、驱动轮和独立 yaw/pitch 云台。程序通过 `main.py` 统一启动，支持选择机器人 MJCF、控制器和地形。
 
-## 启动控制器
+| 控制器 | 建模与控制方式 |
+|---|---|
+| `lqr`（默认） | 10 维等效摆杆模型，4 路虚拟力矩反馈，配合腿长 PID 和 VMC 输出底盘电机力矩 |
+| `whole_body_lqr` | 完整多体动力学的 24 维局部约简模型，直接输出 6 路底盘电机力矩 |
 
-```bash
-.venv/bin/mjpython lqr_controller.py
-```
+两版均使用独立云台 PD，并保留各自的跳跃策略。whole-body 模型包含云台动力学，但底盘 LQR 不控制云台电机。控制器直接使用仿真状态，不包含强化学习或状态估计。
 
-左右腿质量、质心和惯量已以左腿为基准镜像对称。启动时从 MJCF 自动求站立平衡点和 LQR 增益，直接初始化到闭链、重力和接触平衡状态。云台默认保持相对机身零位，由独立的 `GimbalController` 控制 yaw/pitch。
+## 安装与启动
 
-| 按键 | 功能 |
-| --- | --- |
-| 1 / 2 | 前进 / 后退，默认 ±0.8 m/s |
-| 3 / 4 | 负 / 正偏航，默认 ∓1.2 rad/s |
-| 5 / 6 | 升高 / 降低腿高，默认 ±0.05 m/s，范围 0.20–0.28 m |
-| 左 / 右 Shift | 按住时锁定云台世界系指向，底盘以 +8 rad/s 旋转 |
-| 空格 | 暂停 / 继续 |
-
-原有键盘映射及 viewer 沿用 `demo` 分支：按住生效，松开清零对应方向输入，支持组合键。前进和转向按配置的加速度减速，腿高松键后保持目标值。速度和腿高范围使用 hero 的配置。
-
-新增 Shift 按住模式：捕获按下时云台的世界系指向，云台反向补偿底盘旋转。此时平移目标为零，覆盖 `1–4` 的运动指令，`5/6` 仍可调腿高。底盘沿 6 rad/s² 斜坡升至 8 rad/s，参考起转时间约 1.33 秒；松开两个 Shift 后，云台继续保持同一世界系指向；底盘先按原斜坡减速，再以不超过普通转向速度 1.2 rad/s 就近对齐云台朝向。归位期间暂停 `1–4` 的运动输入，完成后恢复；再次按下 Shift 可直接重新进入旋转模式。
+使用 Python 3.12，在项目根目录执行：
 
 ```bash
-.venv/bin/mjpython verify_lqr.py
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/mjpython main.py
 ```
 
-配置见 [configs/lqr.yaml](configs/lqr.yaml)，控制方法、参考 main 分支的适配说明及测试结果见 [LQR.md](LQR.md)。
+macOS 交互窗口使用 `mjpython`。Linux 将运行命令的解释器替换为 `.venv/bin/python`；Windows 使用 `py -3.12 -m venv .venv` 创建环境，再通过 `.venv\Scripts\python.exe` 安装依赖及运行 `main.py`。
 
-代码按 `demo` 分支组织：
+```bash
+# 24 维底盘 LQR，平地
+.venv/bin/mjpython main.py --controller whole_body_lqr
+
+# 加载 20 cm 台阶地形
+.venv/bin/mjpython main.py --controller whole_body_lqr --terrain step
+
+# 选择同构机器人、地形和控制配置
+.venv/bin/mjpython main.py --model /path/to/robot.xml \
+  --controller whole_body_lqr --terrain /path/to/terrain.xml \
+  --config /path/to/control.yaml
+
+# 无窗口站立仿真，运行 5 秒仿真时间
+.venv/bin/mjpython main.py --controller lqr --headless --duration 5
+```
+
+| 参数 | 默认值 / 可选项 |
+|---|---|
+| `--model` | `MJCF/leg_hero.xml`，可指定同构机器人 MJCF |
+| `--controller` | `lqr` 或 `whole_body_lqr` |
+| `--terrain` | `flat`、`step` 或自定义地形 MJCF 路径 |
+| `--config` | 默认加载所选控制器对应的 YAML |
+| `--headless` | 不创建窗口，执行零运动指令仿真 |
+| `--duration` | 无窗口运行时长，默认 5 s，必须为有限正数 |
+
+两种控制配置不能混用。自定义模型需满足现有角色命名、闭链拓扑和直接力矩电机约定；初始轮下需有 z=0 的水平支撑面。加载器替换机器人内名为 `floor` 的地面，自定义地形的测高几何体应使用 group 1。详细接口约束见技术报告。
+
+## 按键
+
+| 按键 | 操作 |
+|---|---|
+| 1 / 2 | 前进 / 后退 |
+| 3 / 4 | 负 / 正偏航 |
+| 5 / 6 | 升高 / 降低腿高 |
+| Shift | 保持云台世界指向并旋转底盘；松开后减速、对齐云台方向 |
+| 空格 | 按住下蹲，松开起跳 |
+| P | 暂停 / 继续 |
+
+## 目录与文档
 
 ```text
-demo.py                  路径、显示配置和按键映射
-lqr_controller.py        参数解析与启动入口
-configs/lqr.yaml         control、command、lqr 参数
-utils/
-  __init__.py            导出 DemoLqrController
-  lqr_control.py         控制器、斜坡规划、力矩控制与仿真步
-  gimbal_controller.py   云台 yaw/pitch 参考、世界指向保持与力矩输出
-  math_tools.py          闭链约简、LQR 求解、move_towards
-  mujoco_io.py           MuJoCo 平衡姿态与逆动力学
-  viewer.py              demo 键盘及显示逻辑，增加左右 Shift 状态读取
-verify_lqr.py            无界面仿真验证
+main.py                 统一仿真入口
+controllers/            底盘、云台、跳跃控制与 LQR 设计
+modelling/              whole_body_modelling.py、vmc_modelling.py
+configs/                两种控制器的 YAML 配置
+MJCF/                   机器人模型、网格与 terrains/ 地形
+utils/                  PID、斜坡、路径和交互窗口
+tests/                  建模与控制器测试
+compare_lqr.py          两种架构的对照实验
+docs/
+  whole_body_lqr.md     动力学、状态空间、两种建模比较与控制框图
+  jump.md               跳跃阶段、支撑判定和空中力矩分配
 ```
 
-入口与 `demo` 原文件一致。viewer 通过 `command` 更新目标，仿真调用链为 `step → control → lqr_control → update_command`；云台控制器使用同一次全系统 LQR 求解中对应云台的增益行，保留底盘与云台的动力学耦合。闭链动力学仍由 hero 的 MJCF 推导。
+- [Whole-body LQR 技术报告](docs/whole_body_lqr.md)：完整多体动力学、闭链消元、24 维状态空间、独立云台闭环、10 维解析模型及接口约定。
+- [跳跃控制说明](docs/jump.md)：两版策略差异、阶段切换、轨迹和力矩分配。
 
-## 模型与环境
+根目录保留本 README 作为使用入口；详细技术文档集中在 `docs/`。模型与网格已包含在仓库中，当前运行不依赖 `sp_lqr` 子模块。
+
+## 验证
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/mjpython -m unittest discover -s tests -v
+.venv/bin/mjpython compare_lqr.py --output reports/lqr_comparison
 ```
 
-查看无控制器的原始模型：
+测试覆盖闭链与 VMC、线性预测、同构模型替换、配平稳定性、扰动恢复、云台独立性及入口组合。对照实验运行 16 组场景、32 次试验，输出 JSON/CSV。
 
-```bash
-.venv/bin/mjpython -m mujoco.viewer --mjcf MJCF/leg_hero.xml
-```
-
-无控制器时机器人会倒下。重新生成 MJCF 和检查模型：
-
-```bash
-.venv/bin/mjpython tools/build_mjcf.py
-.venv/bin/mjpython tools/check_mjcf.py
-```
-
-几何来源、四处闭链、关节轴方向、碰撞设定和 yaw 惯量估算见 [MJCF/README.md](MJCF/README.md)。质量、惯量、杆长、轮径与关节轴均以 MJCF 为准，控制配置不重复保存这些参数。
+最近一次入口整理在 macOS ARM64 上通过七项测试，32 次对照均完成；结果与适用范围见 [报告验证章节](docs/whole_body_lqr.md#13-验证历史结果与未解决问题)。窗口交互和其他平台尚未复验。20 cm 台阶越障仍为已知未解决问题，地形加载和原地跳跃成功不代表越障通过。

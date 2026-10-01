@@ -2,15 +2,14 @@ import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from utils.math_tools import LqrDesign
-
 
 class GimbalController:
     def __init__(
         self,
         model: mujoco.MjModel,
         data: mujoco.MjData,
-        design: LqrDesign,
+        qpos: np.ndarray,
+        limits: np.ndarray,
     ) -> None:
         self.model = model
         self.data = data
@@ -21,15 +20,16 @@ class GimbalController:
             [model.actuator(f"{name}_motor").id for name in ("yaw", "pitch")]
         )
         self.pitch_body = model.body("pitch_link").id
-        self.home = design.qpos[self.qpos].copy()
-        self.gain = design.gain[self.actuators]
-        self.limits = design.limits[self.actuators]
+        self.home = qpos[self.qpos].copy()
+        self.limits = limits[self.actuators]
         self.reference = self.home.copy()
+        self.velocity = np.zeros(2)
         self.direction = np.zeros(3)
         self.holding = False
 
     def reset(self) -> None:
         self.reference[:] = self.home
+        self.velocity[:] = 0.0
         self.direction[:] = self.data.xmat[self.pitch_body].reshape(3, 3)[:, 0]
         self.holding = False
 
@@ -61,11 +61,14 @@ class GimbalController:
         delta = target - self.reference
         delta = np.arctan2(np.sin(delta), np.cos(delta))
         self.reference += delta
-        return self.reference, delta / dt
+        self.velocity[:] = delta / dt
+        return self.reference, self.velocity
 
-    def control(self, state_error: np.ndarray, feedforward: np.ndarray) -> None:
+    def control(self, feedforward: np.ndarray, kp: float, kd: float) -> None:
         self.data.ctrl[self.actuators] = np.clip(
-            feedforward[self.actuators] - self.gain @ state_error,
+            feedforward[self.actuators]
+            + kp * (self.reference - self.data.qpos[self.qpos])
+            + kd * (self.velocity - self.data.qvel[self.dofs]),
             -self.limits,
             self.limits,
         )

@@ -1,0 +1,37 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt black==26.5.1
+      - name: Check formatting
+        run: python -m black --check .
+      - name: Check command line
+        run: |
+          python main.py --help
+          python main.py --controller lqr --headless --duration 1
+          python main.py --controller whole_body_lqr --terrain step --headless --duration 1
+      - name: Check modelling and controllers
+        run: python -m unittest discover -s tests -v
+      - name: Compare chassis controllers
+        run: python compare_lqr.py

@@ -1,0 +1,9 @@
+<mujoco model="flat">
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.16 0.20 0.24" rgb2="0.23 0.27 0.31" width="512" height="512" />
+    <material name="floor_material" texture="grid" texrepeat="4 4" texuniform="true" reflectance="0.1" />
+  </asset>
+  <worldbody>
+    <geom name="floor" type="plane" size="5 5 0.1" material="floor_material" contype="2" conaffinity="1" group="1" friction="0.8 0.005 0.0001" condim="3" solref="0.005 1" />
+  </worldbody>
+</mujoco>

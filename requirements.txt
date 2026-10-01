@@ -1,6 +1,8 @@
-mujoco>=3.11,<4
-glfw
-numpy
-scipy
-pyyaml
-trimesh>=4
+mujoco==3.14.0
+glfw==2.10.2
+numpy==2.5.3
+scipy==1.18.1
+PyYAML==6.0.3
+trimesh==5.1.0
+control==0.10.2
+sympy==1.14.0

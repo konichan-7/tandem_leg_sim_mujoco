@@ -1,0 +1,6 @@
+<mujoco model="step">
+  <include file="flat.xml" />
+  <worldbody>
+    <geom name="step" type="box" pos="4.5 0 0.1" size="1 1 0.1" group="1" contype="2" conaffinity="1" rgba="0.55 0.45 0.3 1" friction="0.8 0.005 0.0001" condim="3" solref="0.005 1" />
+  </worldbody>
+</mujoco>

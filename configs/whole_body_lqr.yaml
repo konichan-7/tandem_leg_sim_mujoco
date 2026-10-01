@@ -26,68 +26,57 @@ jump:
   extension_velocity: 1.0
   retraction_velocity: 4.0
   landing_time: 0.6
-  landing_leg_kp: 100.0
-  landing_leg_kd: 40.0
+  landing_leg_kp: 225.0
+  landing_leg_kd: 30.0
   air_hold_time: 0.05
   thrust_gravity_scale: 1.5
-  momentum_gain: 30.0
-  air_joint_kp: 100.0
-  air_joint_kd: 2.0
+  air_joint_kp: 300.0
+  air_joint_kd: 4.0
   air_attitude_kp: 80.0
   air_attitude_kd: 12.0
-  air_posture_weight: 0.3
+  air_posture_weight: 1.0
   air_leg_kp: 10000.0
   air_leg_kd: 200.0
   air_leg_weight: 2.0
+  air_gimbal_kp: 30.0
+  air_gimbal_kd: 2.0
   liftoff_time: 0.02
   liftoff_force_ratio: 0.02
   landing_force_ratio: 0.05
   ready_height_error: 0.002
   tuck_height_error: 0.002
-  ready_speed: 0.02
-  ready_angular_speed: 0.03
-  ready_time: 0.1
+  ready_speed: 0.05
+  ready_angular_speed: 0.1
 lqr:
-  state_limits:
-    s_max: 1.0
-    ds_max: 2.5
-    phi_max: 3.14
-    dphi_max: 5.0
-    theta_ll_max: 0.7854
-    dtheta_ll_max: 12.0
-    theta_lr_max: 0.7854
-    dtheta_lr_max: 12.0
-    theta_b_max: 0.087
-    dtheta_b_max: 12.0
-  control_limits:
-    T_wl_max: 4.5
-    T_wr_max: 4.5
-    T_bl_max: 60.0
-    T_br_max: 60.0
   Q_weights:
-    s: 400.0
-    ds: 100.0
-    phi: 300.0
-    dphi: 100.0
-    theta_ll: 100.0
-    dtheta_ll: 100.0
-    theta_lr: 100.0
-    dtheta_lr: 100.0
-    theta_b: 250.0
-    dtheta_b: 0.25
-  landing_Q_weights:
-    theta_b: 600.0
-  R_weights:
-    T_wl: 100.0
-    T_wr: 100.0
-    T_bl: 200.0
-    T_br: 200.0
-leg:
-  kp: 2000.0
-  ki: 0.0
-  kd: 100.0
-  integral_limit: 500.0
-  force_limit: 2000.0
+    position:
+      forward: 120.0
+      height: 10000.0
+      roll: 10000.0
+      pitch: 3000.0
+      heading: 100.0
+      left_front_joint: 50.0
+      left_rear_joint: 50.0
+      right_front_joint: 50.0
+      right_rear_joint: 50.0
+      yaw_joint: 0.0
+      pitch_joint: 0.0
+    velocity:
+      forward: 300.0
+      height: 100.0
+      roll: 50.0
+      pitch: 100.0
+      heading: 20.0
+      left_front_joint: 1.0
+      left_rear_joint: 1.0
+      right_front_joint: 1.0
+      right_rear_joint: 1.0
+      left_wheel_joint: 0.1
+      right_wheel_joint: 0.1
+      yaw_joint: 0.0
+      pitch_joint: 0.0
+modelling:
+  finite_difference_step: 1.0e-06
 gimbal:
   kp: 200.0
   kd: 7.0

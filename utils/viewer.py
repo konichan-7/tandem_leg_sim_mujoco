@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 import ctypes
 import sys
@@ -9,7 +11,7 @@ import mujoco
 import mujoco.viewer
 
 
-class DemoController(Protocol):
+class Controller(Protocol):
     model: mujoco.MjModel
     data: mujoco.MjData
     paused: bool
@@ -20,6 +22,7 @@ class DemoController(Protocol):
         yaw_direction: float,
         leg_length_direction: float,
         spin: bool = False,
+        jump: bool = False,
     ) -> None: ...
 
     def toggle_pause(self) -> None: ...
@@ -67,6 +70,9 @@ class MacKeyboard:
     def spin_held(self) -> bool:
         return any(self.core_graphics.CGEventSourceKeyState(0, key) for key in (56, 60))
 
+    def jump_held(self) -> bool:
+        return self.core_graphics.CGEventSourceKeyState(0, 49)
+
 
 class GlfwViewer:
     def __init__(
@@ -83,7 +89,7 @@ class GlfwViewer:
         self.data = data
         self.pause_callback = pause_callback
         self.window = glfw.create_window(1280, 720, title, None, None)
-        if self.window is None:
+        if not self.window:
             glfw.terminate()
             raise RuntimeError("GLFW window creation failed")
 
@@ -116,7 +122,7 @@ class GlfwViewer:
 
     def _key_callback(
         self,
-        window: glfw._GLFWwindow,
+        window: ctypes._Pointer[glfw._GLFWwindow],
         key: int,
         scancode: int,
         action: int,
@@ -124,7 +130,7 @@ class GlfwViewer:
     ) -> None:
         if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
             glfw.set_window_should_close(window, True)
-        elif key == glfw.KEY_SPACE and action == glfw.PRESS:
+        elif key == glfw.KEY_P and action == glfw.PRESS:
             self.pause_callback()
         elif action == glfw.PRESS:
             self.pressed_keys.add(key)
@@ -133,7 +139,7 @@ class GlfwViewer:
 
     def _cursor_callback(
         self,
-        window: glfw._GLFWwindow,
+        window: ctypes._Pointer[glfw._GLFWwindow],
         xpos: float,
         ypos: float,
     ) -> None:
@@ -168,6 +174,8 @@ class GlfwViewer:
             action = mujoco.mjtMouse.mjMOUSE_ZOOM
 
         _, height = glfw.get_window_size(window)
+        if height == 0:
+            return
         mujoco.mjv_moveCamera(
             self.model,
             action,
@@ -178,7 +186,7 @@ class GlfwViewer:
 
     def _scroll_callback(
         self,
-        window: glfw._GLFWwindow,
+        window: ctypes._Pointer[glfw._GLFWwindow],
         xoffset: float,
         yoffset: float,
     ) -> None:
@@ -190,7 +198,9 @@ class GlfwViewer:
             self.camera,
         )
 
-    def _focus_callback(self, window: glfw._GLFWwindow, focused: int) -> None:
+    def _focus_callback(
+        self, window: ctypes._Pointer[glfw._GLFWwindow], focused: int
+    ) -> None:
         if not focused:
             self.pressed_keys.clear()
 
@@ -201,10 +211,8 @@ class GlfwViewer:
         linear_direction = 0.0
         yaw_direction = 0.0
         leg_length_direction = 0.0
-        for keycode in self.pressed_keys:
-            key = chr(keycode)
-            if key in commands:
-                linear, yaw, leg_length = commands[key]
+        for key, (linear, yaw, leg_length) in commands.items():
+            if ord(key) in self.pressed_keys:
                 linear_direction += linear
                 yaw_direction += yaw
                 leg_length_direction += leg_length
@@ -215,6 +223,9 @@ class GlfwViewer:
 
     def spin_held(self) -> bool:
         return bool(self.pressed_keys & {glfw.KEY_LEFT_SHIFT, glfw.KEY_RIGHT_SHIFT})
+
+    def jump_held(self) -> bool:
+        return glfw.KEY_SPACE in self.pressed_keys
 
     def poll_events(self) -> None:
         glfw.poll_events()
@@ -236,7 +247,7 @@ class GlfwViewer:
 
 
 def run_glfw(
-    controller: DemoController,
+    controller: Controller,
     commands: dict[str, tuple[float, float, float]],
     fps: float,
     title: str,
@@ -255,7 +266,9 @@ def run_glfw(
             frame_start = time.perf_counter()
             viewer.poll_events()
             controller.command(
-                *viewer.command_direction(commands), spin=viewer.spin_held()
+                *viewer.command_direction(commands),
+                spin=viewer.spin_held(),
+                jump=viewer.jump_held(),
             )
 
             if controller.paused:
@@ -273,7 +286,7 @@ def run_glfw(
 
 
 def run_mujoco_viewer(
-    controller: DemoController,
+    controller: Controller,
     commands: dict[str, tuple[float, float, float]],
     fps: float,
 ) -> None:
@@ -283,7 +296,7 @@ def run_mujoco_viewer(
     simulation_start = controller.data.time
 
     def key_callback(keycode: int) -> None:
-        if keycode == glfw.KEY_SPACE:
+        if keycode == glfw.KEY_P:
             controller.toggle_pause()
 
     with mujoco.viewer.launch_passive(
@@ -295,7 +308,9 @@ def run_mujoco_viewer(
         while viewer.is_running():
             frame_start = time.perf_counter()
             controller.command(
-                *keyboard.command_direction(commands), spin=keyboard.spin_held()
+                *keyboard.command_direction(commands),
+                spin=keyboard.spin_held(),
+                jump=keyboard.jump_held(),
             )
 
             if controller.paused:
@@ -313,10 +328,10 @@ def run_mujoco_viewer(
 
 
 def run_interactive(
-    controller: DemoController,
+    controller: Controller,
     commands: dict[str, tuple[float, float, float]],
-    fps: float,
     title: str,
+    fps: float = 60.0,
 ) -> None:
     if sys.platform == "darwin":
         run_mujoco_viewer(controller, commands, fps)
