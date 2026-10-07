@@ -1,0 +1,98 @@
+{
+  "version": "0.2.0",
+  "status": "published",
+  "release_date": "2026-10-08",
+  "release_decision": "User explicitly selected this version for publication",
+  "performance_acceptance_passed": false,
+  "policy": {
+    "path": "locomotion.onnx",
+    "sha256": "59faff4b8d57576563df0657660edca6b9f32b25c50c6bd38f1ef79d53d8ba2c"
+  },
+  "checkpoint": {
+    "path": "locomotion.pt",
+    "sha256": "18e9023c6a39e98bdac34b489c4ce26145831ccb3288a00ba3c8c279e40a56d8"
+  },
+  "model": {
+    "path": "MJCF/demo/demo.xml",
+    "sha256": "b884291eba8f9a87205a0a42c1d1117e49709b14e3b6be66de86f0c736db5c8e",
+    "runtime_anchor_correction": false,
+    "closed_chain_equalities": 4
+  },
+  "original_model": {
+    "path": "MJCF/demo/demo_original.xml",
+    "sha256": "41f336f33b7a0d0163dba6621166d4c75a2bb08a117d87e411b652b050fe9963"
+  },
+  "protocol": {
+    "obs_shape": [
+      1,
+      27
+    ],
+    "history_shape": [
+      1,
+      135
+    ],
+    "actions_shape": [
+      1,
+      6
+    ],
+    "history_order": "oldest_to_newest",
+    "policy_period_s": 0.02,
+    "physics_timestep_s": 0.0005,
+    "stand_leg_alpha": 0.25
+  },
+  "keyboard_defaults": {
+    "velocity_mps": 1.0,
+    "yaw_rate_rps": 2.0,
+    "linear_acceleration_mps2": 1.5,
+    "yaw_acceleration_rps2": 6.0
+  },
+  "provenance": {
+    "basis": "C4 steering policy with deterministic standing-leg smoothing",
+    "parent_checkpoint_sha256": "172bbd215f327b8e34da17788ca4ea60bdf4a260324f20e177e7ab81799d7257",
+    "existing_actor_tensors_preserved": true,
+    "standing_refinement_retrained": false
+  },
+  "validation": {
+    "nominal_cases": 30,
+    "standing_duration_s": 60,
+    "cleanup_native_metrics_identical": true,
+    "torch_onnx_max_error": 1.087784767150879e-06,
+    "reexport_onnx_max_error": 0.0,
+    "training_smoke": {
+      "num_envs": 128,
+      "iterations": 2,
+      "base_weights_bitwise_preserved": true
+    },
+    "evaluation": "evaluation.json",
+    "randomized_training_smoke": {
+      "num_envs": 128,
+      "iterations": 1,
+      "base_weights_bitwise_preserved": true
+    },
+    "wheel_build_verified": true
+  },
+  "limitations": [
+    "Positive 2 m/s straight heading error 2.106 degrees and lateral/path ratio 2.615 percent exceed the 2 degree / 2 percent gates.",
+    "Standing wheel control retains small oscillations.",
+    "No full final-suite, external-disturbance, randomized-domain or hardware acceptance."
+  ],
+  "sources_sha256": {
+    "tandem_mjlab/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tandem_mjlab/export.py": "f7d65e4f454b66f613623a94785b834d1edc6934773a8fcbd19fb18ecfb81b4d",
+    "tandem_mjlab/function/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tandem_mjlab/function/locomotion/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tandem_mjlab/function/locomotion/commands.py": "b4af0d34ef693c76635fb658768d2ba3516f104bc22d18615419cb0189b3b512",
+    "tandem_mjlab/function/locomotion/evaluate.py": "6e6f2475b56c6c03aa85175c9ff25ea4928d917bc426c990706883f074995c76",
+    "tandem_mjlab/function/locomotion/task.py": "d54b188f4e930ccbd8df86ee894bf4be8592f835ebe493f4d214004db461b0fd",
+    "tandem_mjlab/function/locomotion/train.py": "090369601e3d18112483ba95f26b5ad5f593ab0f68960c701b42dd670e728d8b",
+    "tandem_mjlab/keyboard.py": "fb44cb5816942674eb29f34fcae2ba4c8099f0da36380a967dbfcf7f6190b27c",
+    "tandem_mjlab/model.py": "6ad56be942fb6ed009cba8c1492291f43549166ed497fe3650787a2e6249bb26",
+    "tandem_mjlab/nominal_state.json": "ec35d10a6b975771a6241a8919bbf55a0160a32a9c3ad4e84870ffdbb412902f",
+    "tandem_mjlab/policy.py": "d88a81a5ab2f68cefdb7201cd864418107a6eaf0d1f6c8096b5db12d0fb3680e",
+    "tandem_mjlab/pyproject.toml": "5bfc2bddca6b809a4297596f43212826e4a043e88453dc2f2d376d2b87c9a6a6",
+    "tandem_mjlab/registration.py": "5b65c411dd03832d0e43b0981eaf307746b138fb1c46c2d379136ba1cc9f2057",
+    "tandem_mjlab/runner.py": "eed9bf83c9a55dd092bb8c66cd0f970700a736caaed9f929e8107f5698b54485",
+    "tandem_mjlab/sim2sim.py": "27c9144ac88d97f9748b2eaee316b006cddc01f5858c4684dbdc4faa76cfbd08",
+    "tandem_mjlab/source.py": "5894fa63fc2c0e47139ea9c9c6fb0f0ccb0e797162cf26989a659c61a604bb2e"
+  }
+}

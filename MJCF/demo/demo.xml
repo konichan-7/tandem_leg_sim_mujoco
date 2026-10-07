@@ -48,13 +48,13 @@
       <body name="left_front_link" pos="0 0.0935 0.069">
         <inertial pos="-0.047088 0.0041691 -0.027001" mass="0.12969" fullinertia="8.6543e-05 0.00034625 0.00026248 4.8428e-07 -0.00012411 2.7769e-07" />
         <joint name="left_front_joint" axis="0 1 0" damping="0.1" range="-3.14 3.14" />
-        <site name="left_front_site1" pos="-0.06947 0.0278 -0.03658" size="0.005" rgba="1 1 0 1"/>           
+        <site name="left_front_site1" pos="-0.06947 0.0188 -0.03658" size="0.005" rgba="1 1 0 1"/>
         <geom type="mesh" mesh="left_front_link" material="mat_front_leg" />
 
         <body name="left_front_child1_link" pos="-0.13947 0.0168 -0.073168">
           <inertial pos="0.059204 0.0058342 -0.065373" mass="0.16979" fullinertia="0.00061883 0.0010018 0.00038697 1.0293e-06 0.00045283 -1.2468e-06" />
           <joint name="left_front_child1_joint" axis="0 1 0" damping="0.02" />
-          <site name="left_front_site2" pos="-0.01157 0 0.03829" size="0.005" rgba="1 0 0 1"/>
+          <site name="left_front_site2" pos="-0.01157 -0.0118 0.03829" size="0.005" rgba="1 0 0 1"/>
           <geom type="mesh" mesh="left_front_child1_link" material="mat_front_link" />
 
           <body name="left_wheel_link" pos="0.11973 0.03105 -0.14364">
@@ -94,13 +94,13 @@
       <body name="right_front_link" pos="0 -0.0935 0.069">
         <inertial pos="-0.057309 -0.0059207 -0.032862" mass="0.10656" fullinertia="8.0792e-05 0.00033498 0.00025673 -4.8428e-07 -0.00012411 -2.7769e-07" />
         <joint name="right_front_joint" axis="0 1 0" damping="0.1" range="-3.14 3.14" />
-        <site name="right_front_site1" pos="-0.06947 -0.0278 -0.03658" size="0.005" rgba="1 1 0 1"/>           
+        <site name="right_front_site1" pos="-0.06947 -0.0268 -0.03658" size="0.005" rgba="1 1 0 1"/>
         <geom type="mesh" mesh="right_front_link" material="mat_front_leg" />
 
         <body name="right_front_child1_link" pos="-0.13947 -0.0168 -0.073168">
           <inertial pos="0.059189 -0.0058342 -0.065386" mass="0.16979" fullinertia="0.00061884 0.0010018 0.00038696 -1.0294e-06 0.00045283 1.2468e-06" />
           <joint name="right_front_child1_joint" axis="0 1 0" damping="0.02" />
-          <site name="right_front_site2" pos="-0.01157 0 0.03829" size="0.005" rgba="1 0 0 1"/>
+          <site name="right_front_site2" pos="-0.01157 0.0118 0.03829" size="0.005" rgba="1 0 0 1"/>
           <geom type="mesh" mesh="right_front_child1_link" material="mat_front_link" />
 
           <body name="right_wheel_link" pos="0.11973 -0.03105 -0.14364">

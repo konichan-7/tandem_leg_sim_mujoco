@@ -1,0 +1,23 @@
+{
+  "joint_positions": {
+    "left_front_joint": 0.3583569164063342,
+    "left_rear_joint": -0.27959968421678644,
+    "right_front_joint": 0.3582006690376761,
+    "right_rear_joint": -0.27974569937923294
+  },
+  "base_height_m": 0.13651999962298994,
+  "motor_efforts": {
+    "left_front_joint": -1.007209639784417,
+    "left_rear_joint": 1.0054416820925431,
+    "right_front_joint": -1.005344402384077,
+    "right_rear_joint": 1.0048899602940762
+  },
+  "motor_limits": {
+    "left_front_joint": 15.0,
+    "left_rear_joint": 15.0,
+    "right_front_joint": 15.0,
+    "right_rear_joint": 15.0,
+    "left_wheel_joint": 2.0,
+    "right_wheel_joint": 2.0
+  }
+}

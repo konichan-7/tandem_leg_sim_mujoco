@@ -40,9 +40,12 @@ class DemoLqrController:
     def __init__(
         self,
         yaml_path: Path = PATHS.lqr_yaml,
+        model: mujoco.MjModel | None = None,
     ) -> None:
         self.params = load_yaml(yaml_path)
-        self.model = mujoco.MjModel.from_xml_path(str(PATHS.xml))
+        self.model = (
+            mujoco.MjModel.from_xml_path(str(PATHS.xml)) if model is None else model
+        )
         self.data = mujoco.MjData(self.model)
         self.sensor = MujocoSensorReader(self.model, self.data)
         self.actuator = MujocoActuatorWriter(
@@ -267,11 +270,14 @@ class DemoLqrController:
         self.last_phi0_r = phi0_r
         return dot_phi0_l, dot_phi0_r
 
-    def lqr_control(self, dt: float) -> None:
-        self.update_command(dt)
+    def forward_velocity(self) -> float:
         dtheta_l = self.sensor.joint_velocity(SENSORS.left_wheel_vel)
         dtheta_r = self.sensor.joint_velocity(SENSORS.right_wheel_vel)
-        ds = 0.5 * self.params["R_w"] * (dtheta_l + dtheta_r)
+        return 0.5 * self.params["R_w"] * (dtheta_l + dtheta_r)
+
+    def lqr_control(self, dt: float) -> None:
+        self.update_command(dt)
+        ds = self.forward_velocity()
         self.s += ds * dt
 
         pitch, yaw, dot_pitch, dot_yaw = self.base_state(dt)

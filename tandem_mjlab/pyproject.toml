@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tandem-mjlab"
+version = "0.2.0"
+requires-python = ">=3.10"
+dependencies = ["mujoco", "numpy", "scipy", "onnxruntime"]
+
+[project.optional-dependencies]
+train = ["mjlab==1.6.0"]
+
+[project.entry-points."mjlab.tasks"]
+tandem = "tandem_mjlab.registration"
+
+[tool.setuptools]
+include-package-data = false
+package-dir = {tandem_mjlab = "."}
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["tandem_mjlab", "tandem_mjlab.function", "tandem_mjlab.function.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+tandem_mjlab = ["nominal_state.json", "policies/*.onnx", "policies/*.pt", "policies/*.json", "policies/*.md"]
+
+[tool.black]
+line-length = 88
